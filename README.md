@@ -1,20 +1,20 @@
-# yaxa
+# YAXA
 Toy crypto algorithm and file-encryption utility using OpenSSL
 
-# dependencies
+# Dependencies
 OpenSSL 1.1.*
 
-# compilation
+# Compilation
 
 gcc ./yaxafileutil.c -o ./yaxafileutil -lcrypto
 
-# intent and disclaimer
+# Intent and Disclaimer
 
 __*DO NOT RELY ON THIS FOR STRONG ENCRYPTION*__
 
 This program was only written for practice and educational purposes.  It is surely not suitable for secure encryption and I have no professional training as a cryptographer.  I wrote this mostly to learn how to work with 64-bit data values in an application which interests me.
 
-# details
+# Details
 
 YAXA stands for Yet Another XOR Algorithm.  Years ago I read a few C tutorials about using the XOR operator for encryption in C. This is colloquially known as "Simple XOR", as coined by Bruce Schneier in Section 1.4 of "Applied Cryptography", and exemplified in dozens of tutorials online.  This has always been known as very insecure for a number of reasons, and over the years I've experimented with ways of trying to make it more secure.  I wandered upon the concept of a "counter-based stream cipher" in Chapter 5 of Jean-Philippe Amausson's "Serious Cryptography" and decided to try to implement it.  This is a bit of a step-up from "Simple XOR" and uses the following construction:
 
