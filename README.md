@@ -16,7 +16,7 @@ This program was only written for practice and educational purposes.  It is sure
 
 # Details
 
-YAXA stands for Yet Another XOR Algorithm.  Years ago I read a few C tutorials about using the XOR operator for encryption in C. This is colloquially known as "Simple XOR", as coined by Bruce Schneier in Section 1.4 of "Applied Cryptography", and exemplified in dozens of tutorials online.  This has always been known as very insecure for a number of reasons, and over the years I've experimented with ways of trying to make it more secure.  I wandered upon the concept of a "counter-based stream cipher" in Chapter 5 of Jean-Philippe Amausson's "Serious Cryptography" and decided to try to implement it.  This is a bit of a step-up from "Simple XOR" and uses the following construction:
+YAXA stands for Yet Another XOR Algorithm.  Years ago I read a few C tutorials about using the XOR operator for encryption in C. This is colloquially known as "Simple XOR", as coined by Bruce Schneier in Section 1.4 of *"Applied Cryptography"*, and exemplified in dozens of tutorials online.  This has always been known as very insecure for a number of reasons, and over the years I've experimented with ways of trying to make it more secure.  I wandered upon the concept of a "counter-based stream cipher" in Chapter 5 of Jean-Philippe Amausson's *"Serious Cryptography"* and decided to try to implement it.  This is a bit of a step-up from "Simple XOR" and uses the following construction:
 
 *C = E(P ⊕ N ⊕ KS = f(K ⊕ Ctr = g(Ctr += 1)))*
 
