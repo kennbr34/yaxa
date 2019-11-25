@@ -18,17 +18,17 @@ This program was only written for practice and educational purposes.  It is sure
 
 YAXA stands for Yet Another XOR Algorithm.  Years ago I read a few C tutorials about using the XOR operator for encryption in C. This is colloquially known as "Simple XOR", as coined by Bruce Schneier in Section 1.4 of *"Applied Cryptography"*, and exemplified in dozens of tutorials online.  This has always been known as very insecure for a number of reasons, and over the years I've experimented with ways of trying to make it more secure.  I wandered upon the concept of a "counter-based stream cipher" in Chapter 5 of Jean-Philippe Amausson's *"Serious Cryptography"* and decided to try to implement it.  This is a bit of a step-up from "Simple XOR" and uses the following construction:
 
-*Encryption
+*Encryption*
 
-*C₁ = Ctr₁ ⊕ K₁ ⊕ N₁ ⊕ P₁
-*C₂ = Ctr₂ ⊕ K₂ ⊕ N₂ ⊕ P₂
-*...
+*C₁ = Ctr₁ ⊕ K₁ ⊕ N₁ ⊕ P₁*
+*C₂ = Ctr₂ ⊕ K₂ ⊕ N₂ ⊕ P₂*
+*...*
 
-*Decryption
+*Decryption*
 
-*P₁ = Ctr₁ ⊕ K₁ ⊕ N₁ ⊕ C₁
-*P₂ = Ctr₂ ⊕ K₂ ⊕ N₂ ⊕ C₂
-*...
+*P₁ = Ctr₁ ⊕ K₁ ⊕ N₁ ⊕ C₁*
+*P₂ = Ctr₂ ⊕ K₂ ⊕ N₂ ⊕ C₂*
+*...*
 
 Where **'C'** is the cipher-text value, **Ctr** is a counter-variable value, **K** a key value, **N** a nonce value, and **P** a plain-text value.  The **Ctr** value is sequentially incremented with each repetition over the message so that even if the end of **K** or **N** is reached before the end of **P/C**, **Ctr** generates a *keystream* that doesn't repeat (aka non-periodic) so long as the length of the message is within **Ctr**'s range of distinct values. The nonce-value **N** prevents key re-use so that the entire construction generates a keystream that is effectively a one-time-pad even if the same key is used, so long as the nonce is not reused.
 
