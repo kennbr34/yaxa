@@ -5,8 +5,9 @@
 #define _FILE_OFFSET_BITS 64
 
 #include <errno.h>
-#include <openssl/evp.h>
+#include <openssl/err.h>
 #include <openssl/hmac.h>
+#include <openssl/kdf.h>
 #include <openssl/rand.h>
 #include <openssl/sha.h>
 #include <signal.h>
@@ -44,9 +45,13 @@
 
 #define YAXA_SALT_SIZE YAXA_KEYBUF_SIZE / YAXA_KEY_CHUNK_SIZE
 
-#define PBKDF2_ITERATIONS 1000000
+#define DEFAULT_SCRYPT_N 1048576
 
-#define PASS_TAG_SIZE SHA512_DIGEST_LENGTH
+#define DEFAULT_SCRYPT_R 8
+
+#define DEFAULT_SCRYPT_P 1
+
+#define PASS_KEYED_HASH_SIZE SHA512_DIGEST_LENGTH
 
 #define HMAC_KEY_SIZE SHA512_DIGEST_LENGTH
 
@@ -68,17 +73,18 @@ union keyUnion {
 
 union keyUnion key;
 
-unsigned char yaxaKeyArray[YAXA_SALT_SIZE][SHA512_DIGEST_LENGTH];
+unsigned char yaxaKeyArray[YAXA_SALT_SIZE][YAXA_KEY_CHUNK_SIZE];
 unsigned char *yaxaKeyChunk = NULL;
 unsigned char *yaxaKey = NULL;
 unsigned char *yaxaSalt = NULL;
 
 char *userPass = NULL;
-unsigned char passTag[PASS_TAG_SIZE], passTagFromFile[PASS_TAG_SIZE];
+unsigned char passKeyedHash[PASS_KEYED_HASH_SIZE], passKeyedHashFromFile[PASS_KEYED_HASH_SIZE];
 
 unsigned char generatedMAC[MAC_SIZE];
 unsigned char fileMAC[MAC_SIZE];
 unsigned char *hmacKey = NULL;
+unsigned int *HMACLengthPtr = NULL;
 
 /*Iterator for indexing yaxaKey array*/
 int k = 0;
@@ -94,7 +100,7 @@ int freadWErrCheck(void *ptr, size_t size, size_t nmemb, FILE *stream);  /*fread
 int fwriteWErrCheck(void *ptr, size_t size, size_t nmemb, FILE *stream); /*fwrite() error checking wrapper*/
 void genHMAC(FILE *dataFile, uint64_t fileSize);                         /*Generate HMAC*/
 void genHMACKey();                                                       /*Generate key for HMAC*/
-void genPassTag();                                                       /*Generate passTag*/
+void genPassTag();                                                       /*Generate passKeyedHash*/
 void genYaxaSalt();                                                      /*Generates YAXA salt*/
 void genYaxaKey();                                                       /*YAXA key deriving function*/
 uint64_t getFileSize(const char *filename);                              /*Returns filesize using stat()*/
@@ -135,6 +141,9 @@ int main(int argc, char *argv[])
     }
 
     uint64_t fileSize;
+    
+    counter.counterInt = 0;
+    key.keyInt = 0;
 
     if (strcmp(argv[1], "-e") == 0) {
 
@@ -152,9 +161,11 @@ int main(int argc, char *argv[])
 
         genYaxaSalt();
 
-        genPassTag();
-
         genYaxaKey();
+        
+        genHMACKey();
+        
+        genPassTag();
 
         fileSize = getFileSize(argv[2]);
 
@@ -164,8 +175,8 @@ int main(int argc, char *argv[])
             exit(EXIT_FAILURE);
         }
 
-        /*Write passTag to head of file next to salt*/
-        if (fwriteWErrCheck(passTag, sizeof(unsigned char), PASS_TAG_SIZE, outFile) != 0) {
+        /*Write passKeyedHash to head of file next to salt*/
+        if (fwriteWErrCheck(passKeyedHash, sizeof(unsigned char), PASS_KEYED_HASH_SIZE, outFile) != 0) {
             printSysError(returnVal);
             exit(EXIT_FAILURE);
         }
@@ -181,8 +192,6 @@ int main(int argc, char *argv[])
         /*Now get new filesize and reset flie position to beginning*/
         fileSize = ftell(outFile);
         rewind(outFile);
-
-        genHMACKey();
 
         genHMAC(outFile, fileSize);
 
@@ -212,26 +221,28 @@ int main(int argc, char *argv[])
             exit(EXIT_FAILURE);
         }
 
-        /*Get passTagFromFile*/
-        if (freadWErrCheck(passTagFromFile, sizeof(unsigned char), PASS_TAG_SIZE, inFile) != 0) {
+        /*Get passKeyedHashFromFile*/
+        if (freadWErrCheck(passKeyedHashFromFile, sizeof(unsigned char), PASS_KEYED_HASH_SIZE, inFile) != 0) {
             printSysError(returnVal);
             exit(EXIT_FAILURE);
         }
 
+        genYaxaKey();
+        
+        genHMACKey();
+        
         genPassTag();
 
-        if (CRYPTO_memcmp(passTag, passTagFromFile, PASS_TAG_SIZE) != 0) {
+        if (CRYPTO_memcmp(passKeyedHash, passKeyedHashFromFile, PASS_KEYED_HASH_SIZE) != 0) {
             printf("Wrong password\n");
             exit(EXIT_FAILURE);
         }
 
-        genYaxaKey();
-
-        /*Get filesize, discounting the salt and passTag*/
-        fileSize = getFileSize(argv[2]) - (YAXA_SALT_SIZE + PASS_TAG_SIZE);
+        /*Get filesize, discounting the salt and passKeyedHash*/
+        fileSize = getFileSize(argv[2]) - (YAXA_SALT_SIZE + PASS_KEYED_HASH_SIZE);
 
         /*Move file position to the start of the MAC*/
-        fseek(inFile, (fileSize + YAXA_SALT_SIZE + PASS_TAG_SIZE) - MAC_SIZE, SEEK_SET);
+        fseek(inFile, (fileSize + YAXA_SALT_SIZE + PASS_KEYED_HASH_SIZE) - MAC_SIZE, SEEK_SET);
 
         if (freadWErrCheck(fileMAC, sizeof(unsigned char), MAC_SIZE, inFile) != 0) {
             printSysError(returnVal);
@@ -241,9 +252,7 @@ int main(int argc, char *argv[])
         /*Reset file position to beginning of file*/
         rewind(inFile);
 
-        genHMACKey();
-
-        genHMAC(inFile, (fileSize + (YAXA_SALT_SIZE + PASS_TAG_SIZE)) - MAC_SIZE);
+        genHMAC(inFile, (fileSize + (YAXA_SALT_SIZE + PASS_KEYED_HASH_SIZE)) - MAC_SIZE);
 
         /*Verify MAC*/
         if (CRYPTO_memcmp(fileMAC, generatedMAC, MAC_SIZE) != 0) {
@@ -254,7 +263,7 @@ int main(int argc, char *argv[])
         OPENSSL_cleanse(hmacKey, HMAC_KEY_SIZE);
 
         /*Reset file posiiton to beginning of cipher-text after the salt and pass tag*/
-        fseek(inFile, YAXA_SALT_SIZE + PASS_TAG_SIZE, SEEK_SET);
+        fseek(inFile, YAXA_SALT_SIZE + PASS_KEYED_HASH_SIZE, SEEK_SET);
 
         /*Now decrypt the cipher-text, disocounting the size of the MAC*/
         doCrypt(inFile, outFile, fileSize - MAC_SIZE);
@@ -385,7 +394,7 @@ void genHMAC(FILE *dataFile, uint64_t fileSize)
 
     /*Initiate HMAC*/
     HMAC_CTX *ctx = HMAC_CTX_new();
-    HMAC_Init_ex(ctx, yaxaKey, YAXA_KEY_LENGTH, EVP_sha512(), NULL);
+    HMAC_Init_ex(ctx, hmacKey, HMAC_KEY_SIZE, EVP_sha512(), NULL);
 
     /*HMAC the cipher-text, passtag and salt*/
     uint64_t i; /*Declare i outside of for loop so it can be used in HMAC_Final as the size*/
@@ -403,72 +412,136 @@ void genHMAC(FILE *dataFile, uint64_t fileSize)
 void genHMACKey()
 {
 
-    unsigned char hmacSalt[YAXA_SALT_SIZE];
-
-    /*Derive a different salt for HMAC based on yaxa salt*/
-    for (int i = 0; i < YAXA_SALT_SIZE; i++)
-        hmacSalt[i] = yaxaSalt[i] ^ (i + 3);
-
-    /*Derive a 64-byte key for HMAC*/
-    if (!PKCS5_PBKDF2_HMAC(userPass, -1, hmacSalt, YAXA_SALT_SIZE, PBKDF2_ITERATIONS, EVP_get_digestbyname("sha512"), SHA512_DIGEST_LENGTH, hmacKey)) {
-        printError("PBKDf2 failed");
+    EVP_PKEY_CTX *pctx;
+    size_t outlen = sizeof(unsigned char) * HMAC_KEY_SIZE;
+    pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, NULL);
+    
+    if (EVP_PKEY_derive_init(pctx) <= 0) {
+        printError("HKDF failed\n");
+        ERR_print_errors_fp(stderr);
         exit(EXIT_FAILURE);
     }
+    if (EVP_PKEY_CTX_set_hkdf_md(pctx, EVP_sha512()) <= 0) {
+        printError("HKDF failed\n");
+        ERR_print_errors_fp(stderr);
+        exit(EXIT_FAILURE);
+    }
+    if (EVP_PKEY_CTX_set1_hkdf_key(pctx, yaxaKey, YAXA_KEYBUF_SIZE) <= 0) {
+        printError("HKDF failed\n");
+        ERR_print_errors_fp(stderr);
+        exit(EXIT_FAILURE);
+    }
+    if (EVP_PKEY_CTX_add1_hkdf_info(pctx, "authkey", strlen("authkey")) <= 0) {
+        printError("HKDF failed\n");
+        ERR_print_errors_fp(stderr);
+        exit(EXIT_FAILURE);
+    }
+    if (EVP_PKEY_derive(pctx, hmacKey, &outlen) <= 0) {
+        printError("HKDF failed\n");
+        ERR_print_errors_fp(stderr);
+        exit(EXIT_FAILURE);
+    }
+    
+    EVP_PKEY_CTX_free(pctx);
 }
 
 void genPassTag()
 {
-    unsigned char tagSalt[YAXA_SALT_SIZE];
-
-    /*Derive a different salt for HMAC based on yaxa salt*/
-    for (int i = 0; i < YAXA_SALT_SIZE; i++)
-        tagSalt[i] = yaxaSalt[i] ^ (i + 4);
-
-    if (!PKCS5_PBKDF2_HMAC(userPass, strlen(userPass), tagSalt, YAXA_SALT_SIZE, PBKDF2_ITERATIONS, EVP_get_digestbyname("sha512"), PASS_TAG_SIZE, passTag)) {
-        printError("PBKDF2 failed");
+    
+    if (HMAC(EVP_sha512(), hmacKey, HMAC_KEY_SIZE, userPass, strlen(userPass), passKeyedHash, HMACLengthPtr) == NULL) {
+        printError("Password keyed-hash failure");
+        ERR_print_errors_fp(stderr);
         exit(EXIT_FAILURE);
     }
 }
 
 void genYaxaKey()
 {
-
-    /*Get a random starting point for counter variable*/
-    for (int i = 0; i < sizeof(uint64_t); i++) {
-        if (!PKCS5_PBKDF2_HMAC(userPass, -1, yaxaSalt, YAXA_SALT_SIZE, PBKDF2_ITERATIONS + yaxaSalt[i], EVP_get_digestbyname("sha512"), 1, &counter.counterBytes[i])) {
-            printError("PBKDF2 failed");
-            exit(EXIT_FAILURE);
-        }
-    }
-
-    /*Seed rand() with that random starting point of counter variable*/
-    srand(counter.counterInt);
-
     /*Derive a 64-byte key to expand*/
-    if (!PKCS5_PBKDF2_HMAC(userPass, -1, yaxaSalt, YAXA_SALT_SIZE, PBKDF2_ITERATIONS + yaxaSalt[0], EVP_get_digestbyname("sha512"), SHA512_DIGEST_LENGTH, yaxaKeyChunk)) {
-        printError("PBKDf2 failed");
+    EVP_PKEY_CTX *pctx;
+
+    size_t outlen = YAXA_KEY_CHUNK_SIZE;
+    pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_SCRYPT, NULL);
+
+    if (EVP_PKEY_derive_init(pctx) <= 0) {
+        printError("scrypt failed\n");
+        ERR_print_errors_fp(stderr);
+        exit(EXIT_FAILURE);
+    }
+    if (EVP_PKEY_CTX_set1_pbe_pass(pctx, userPass, strlen(userPass)) <= 0) {
+        printError("scrypt failed\n");
+        ERR_print_errors_fp(stderr);
+        exit(EXIT_FAILURE);
+    }
+    if (EVP_PKEY_CTX_set1_scrypt_salt(pctx, yaxaSalt, YAXA_SALT_SIZE) <= 0) {
+        printError("scrypt failed\n");
+        ERR_print_errors_fp(stderr);
+        exit(EXIT_FAILURE);
+    }
+    if (EVP_PKEY_CTX_set_scrypt_N(pctx, DEFAULT_SCRYPT_N) <= 0) {
+        printError("scrypt failed\n");
+        ERR_print_errors_fp(stderr);
+        exit(EXIT_FAILURE);
+    }
+    if (EVP_PKEY_CTX_set_scrypt_r(pctx, DEFAULT_SCRYPT_R) <= 0) {
+        printError("scrypt failed\n");
+        ERR_print_errors_fp(stderr);
+        exit(EXIT_FAILURE);
+    }
+    if (EVP_PKEY_CTX_set_scrypt_p(pctx, DEFAULT_SCRYPT_P) <= 0) {
+        printError("scrypt failed\n");
+        ERR_print_errors_fp(stderr);
+        exit(EXIT_FAILURE);
+    }
+    if (EVP_PKEY_derive(pctx, yaxaKeyChunk, &outlen) <= 0) {
+        printError("scrypt failed\n");
+        ERR_print_errors_fp(stderr);
         exit(EXIT_FAILURE);
     }
 
+    EVP_PKEY_CTX_free(pctx);
+    
     /*Copy that first 64-byte chunk into the yaxaKeyArray*/
-    memcpy(yaxaKeyArray[0], yaxaKeyChunk, SHA512_DIGEST_LENGTH);
+    memcpy(yaxaKeyArray[0], yaxaKeyChunk, YAXA_KEY_CHUNK_SIZE);
 
     /*Expand that 64-byte key into YAXA_KEYBUF_SIZE key*/
     for (int i = 1; i < YAXA_SALT_SIZE; i++) {
-
-        /*Generate 64 more bytes by XOR'ing previously generated chunk with random values*/
-        for (int j = 0; j < SHA512_DIGEST_LENGTH; j++) {
-            yaxaKeyChunk[j] = yaxaKeyArray[i - 1][j] ^ rand();
+                
+        EVP_PKEY_CTX *pctx;
+        size_t outlen = sizeof(unsigned char) * YAXA_KEY_CHUNK_SIZE;
+        pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, NULL);
+        
+        if (EVP_PKEY_derive_init(pctx) <= 0) {
+            printError("HKDF failed\n");
+            ERR_print_errors_fp(stderr);
+            exit(EXIT_FAILURE);
         }
+        if (EVP_PKEY_CTX_set_hkdf_md(pctx, EVP_sha512()) <= 0) {
+            printError("HKDF failed\n");
+            ERR_print_errors_fp(stderr);
+            exit(EXIT_FAILURE);
+        }
+        if (EVP_PKEY_CTX_set1_hkdf_key(pctx, yaxaKeyArray[i - 1], YAXA_KEY_CHUNK_SIZE) <= 0) {
+            printError("HKDF failed\n");
+            ERR_print_errors_fp(stderr);
+            exit(EXIT_FAILURE);
+        }
+        if (EVP_PKEY_derive(pctx, yaxaKeyChunk, &outlen) <= 0) {
+            printError("HKDF failed\n");
+            ERR_print_errors_fp(stderr);
+            exit(EXIT_FAILURE);
+        }
+        
+        EVP_PKEY_CTX_free(pctx);
 
         /*Copy the 64-byte chunk into the yaxaKeyarray*/
-        memcpy(yaxaKeyArray[i], yaxaKeyChunk, SHA512_DIGEST_LENGTH);
+        memcpy(yaxaKeyArray[i], yaxaKeyChunk, YAXA_KEY_CHUNK_SIZE);
     }
 
     memcpy(yaxaKey, yaxaKeyArray, YAXA_KEYBUF_SIZE);
 
     OPENSSL_cleanse(yaxaKeyArray, YAXA_KEYBUF_SIZE);
-    OPENSSL_cleanse(yaxaKeyChunk, SHA512_DIGEST_LENGTH);
+    OPENSSL_cleanse(yaxaKeyChunk, YAXA_KEY_CHUNK_SIZE);
 }
 
 void genYaxaSalt()
