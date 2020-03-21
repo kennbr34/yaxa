@@ -1,12 +1,13 @@
 # YAXA
-Toy crypto algorithm and file-encryption utility using OpenSSL
+GUI for toy crypto algorithm and file-encryption utility using OpenSSL
 
 # Dependencies
 OpenSSL 1.1.*
+GTK 3.0
 
 # Compilation
 
-gcc ./yaxafileutil.c -o ./yaxafileutil -lcrypto
+gcc -g `pkg-config --cflags gtk+-3.0` ./yaxafileutil_gui.c -o ./yaxafileutil_gui `pkg-config --libs gtk+-3.0` -lcrypto
 
 # Intent and Disclaimer
 

@@ -19,20 +19,25 @@
 #include <sys/types.h>
 #include <termios.h>
 #include <stdbool.h>
+#include <gtk/gtk.h>
+#include <sys/mman.h>
 
 #define printSysError(errCode) \
     { \
         fprintf(stderr, "%s:%s:%d: %s\n", __FILE__, __func__, __LINE__, strerror(errCode)); \
+        snprintf(statusMessage,256, "%s:%s:%d: %s", __FILE__, __func__, __LINE__, strerror(errCode)); \
     }
 
 #define printFileError(fileName, errCode) \
     { \
-        fprintf(stderr, "%s: %s (Line: %i)\n", fileName, strerror(errCode), __LINE__); \
+        fprintf(stderr, "%s: %s (Line: %i)\n", strerror(errCode), fileName, __LINE__); \
+        snprintf(statusMessage,256, "%s: %s (Line: %i)", strerror(errCode), fileName, __LINE__); \
     }
 
 #define printError(errMsg) \
     { \
         fprintf(stderr, "%s:%s:%d: %s\n", __FILE__, __func__, __LINE__, errMsg); \
+        snprintf(statusMessage, 256, "%s:%s:%d: %s\n", __FILE__, __func__, __LINE__, errMsg); \
     }
 
 #define MAX_PASS_SIZE 512
@@ -87,7 +92,7 @@ unsigned char *hmacKey = NULL;
 unsigned int *HMACLengthPtr = NULL;
 
 /*Iterator for indexing yaxaKey array*/
-int k = 0;
+int k;
 
 int returnVal;
 int gotPassFromCmdLine = false;
@@ -104,23 +109,37 @@ void genPassTag();                                                       /*Gener
 void genYaxaSalt();                                                      /*Generates YAXA salt*/
 void genYaxaKey();                                                       /*YAXA key deriving function*/
 uint64_t getFileSize(const char *filename);                              /*Returns filesize using stat()*/
-char *getPass(const char *prompt);                                       /*Function to retrive passwords with no echo*/
-int printSyntax(char *arg);                                              /*Print program usage and help*/
 void signalHandler(int signum);                                          /*Signal handler for Ctrl+C*/
 uint64_t yaxa(uint64_t messageInt);                                      /*YAXA encryption/decryption function*/
+void on_encryptButton_clicked(GtkWidget *wid, gpointer ptr);
+void on_decryptButton_clicked(GtkWidget *wid, gpointer ptr);
+static void inputFileSelect (GtkWidget *wid, gpointer ptr);
+static void outputFileSelect (GtkWidget *wid, gpointer ptr);
+void passVisibilityToggle (GtkWidget *wid, gpointer ptr);
+static gboolean updateStatus(gpointer user_data);
+int workThread();
+
+GtkWidget *inputFileNameBox;
+GtkWidget *outputFileNameBox;
+GtkWidget *passwordBox;
+GtkWidget *passwordVerificationBox;
+
+const char *inputFilePath;
+const char *outputFilePath;
+const char *passWord;
+const char *verificationPass;
+
+char action = 0;
+
+GtkWidget *statusBar;
+guint statusContextID;
+char *statusMessage;
 
 int main(int argc, char *argv[])
 {
-    if (argc == 1) {
-        printSyntax(argv[0]);
-        exit(EXIT_FAILURE);
-    }
-
-    if (strcmp(argv[1], "-e") != 0 && strcmp(argv[1], "-d") != 0) {
-        printSyntax(argv[0]);
-        exit(EXIT_FAILURE);
-    }
-
+    
+    statusMessage = mmap(NULL, 256, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+    
     signal(SIGINT, signalHandler);
 
     atexit(cleanUpBuffers);
@@ -128,15 +147,110 @@ int main(int argc, char *argv[])
     allocateBuffers();
 
     OpenSSL_add_all_algorithms();
+    
+    gtk_init (&argc, &argv);
+    
+    GtkWidget *win = gtk_window_new (GTK_WINDOW_TOPLEVEL);
+    
+    gtk_window_set_title(GTK_WINDOW (win), "YAXA File Encryption Utility");
+    
+    GtkWidget *inputFileLabel = gtk_label_new ("Input File Path");
+    inputFileNameBox = gtk_entry_new ();
+    gtk_widget_set_tooltip_text (inputFileNameBox, "Enter the full path to the file you want to encrypt/decrypt here");
+    GtkWidget *inputFileButton = gtk_button_new_with_label ("Select File");
+    gtk_widget_set_tooltip_text (inputFileButton, "Select the file you want to encrypt/decrypt to fill in this path");
+    g_signal_connect (inputFileButton, "clicked", G_CALLBACK (inputFileSelect), win);
+    
+    GtkWidget *outputFileLabel = gtk_label_new ("Output File Path");
+    outputFileNameBox = gtk_entry_new ();
+    gtk_widget_set_tooltip_text (outputFileNameBox, "Enter the full path to where you want to save the result of encryption/decryption");
+    GtkWidget *outputFileButton = gtk_button_new_with_label ("Select File");
+    gtk_widget_set_tooltip_text (outputFileButton, "Select where you want to save the result of encryption/decryption to fill in this path");
+    g_signal_connect (outputFileButton, "clicked", G_CALLBACK (outputFileSelect), win);
+    
+    GtkWidget *passwordLabel = gtk_label_new ("Password");
+    passwordBox = gtk_entry_new ();
+    gtk_widget_set_tooltip_text (passwordBox, "Password to derive key from");
+    gtk_entry_set_invisible_char(GTK_ENTRY (passwordBox),'*');
+    gtk_entry_set_visibility(GTK_ENTRY (passwordBox), FALSE);
+    
+    GtkWidget *verificationLabel = gtk_label_new ("Verify Password");
+    passwordVerificationBox = gtk_entry_new ();
+    gtk_widget_set_tooltip_text (passwordVerificationBox, "Note: Not needed for decryption");
+    gtk_entry_set_invisible_char(GTK_ENTRY (passwordVerificationBox),'*');
+    gtk_entry_set_visibility(GTK_ENTRY (passwordVerificationBox), FALSE);
+    
+    GtkWidget *visibilityButton = gtk_check_button_new_with_label ("Show Password");
+    gtk_widget_set_tooltip_text (visibilityButton, "Hint: Use this to avoid typos");
+    gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (visibilityButton), FALSE);
+    g_signal_connect (visibilityButton, "toggled", G_CALLBACK (passVisibilityToggle),NULL);
+    
+    GtkWidget *encryptButton = gtk_button_new_with_label ("Encrypt");
+    g_signal_connect (encryptButton, "clicked", G_CALLBACK (on_encryptButton_clicked), NULL);
+        
+    GtkWidget *decryptButton = gtk_button_new_with_label ("Decrypt");
+    g_signal_connect (decryptButton, "clicked", G_CALLBACK (on_decryptButton_clicked), NULL);
+    
+    statusBar = gtk_statusbar_new ();
+    gtk_widget_set_tooltip_text (statusBar, "Program will show status updates here");
+    strcpy(statusMessage,"Ready");
+    g_timeout_add (500, updateStatus, statusMessage);
+    
+    GtkWidget *grid = gtk_grid_new();
+    gtk_widget_set_hexpand (inputFileLabel, TRUE);
+    gtk_grid_attach (GTK_GRID (grid), inputFileLabel, 0, 0, 1, 1);
+    gtk_grid_attach (GTK_GRID (grid), inputFileNameBox, 0, 2, 1, 1);
+    gtk_grid_attach (GTK_GRID (grid), inputFileButton, 1, 2, 1, 1);
+    gtk_grid_attach (GTK_GRID (grid), outputFileLabel, 0, 4, 1, 1);
+    gtk_grid_attach (GTK_GRID (grid), outputFileNameBox, 0, 5, 1, 1);
+    gtk_grid_attach (GTK_GRID (grid), outputFileButton, 1, 5, 1, 1);
+    gtk_grid_attach (GTK_GRID (grid), passwordLabel, 0, 7, 1, 1);
+    gtk_grid_attach (GTK_GRID (grid), passwordBox, 0, 8, 1, 1);
+    gtk_grid_attach (GTK_GRID (grid), verificationLabel, 0, 9, 1, 1);
+    gtk_grid_attach (GTK_GRID (grid), passwordVerificationBox, 0, 10, 1, 1);
+    gtk_grid_attach (GTK_GRID (grid), visibilityButton, 1, 8, 1, 1);
+    gtk_grid_attach (GTK_GRID (grid), encryptButton, 0, 12, 2, 1);
+    gtk_grid_attach (GTK_GRID (grid), decryptButton, 0, 13, 2, 1);
+    gtk_grid_attach (GTK_GRID (grid), statusBar, 0, 14, 2, 1);
+    
+    gtk_container_add (GTK_CONTAINER (win), grid);
+    
+    g_signal_connect (win, "delete_event", G_CALLBACK (gtk_main_quit), NULL);
+    
+    gtk_widget_show_all (win);
+    gtk_main ();
 
-    FILE *inFile = fopen(argv[2], "rb");
-    if (inFile == NULL) {
-        printFileError(argv[2], errno);
+    exit(EXIT_SUCCESS);
+}
+
+int workThread()
+{
+    pid_t p = fork();
+    if(p) return 0;
+    
+    if(!strlen(userPass)) {
+        strcpy(statusMessage,"No password entered");
         exit(EXIT_FAILURE);
     }
-    FILE *outFile = fopen(argv[3], "wb+");
+    
+    if(!strlen(inputFilePath)) {
+        strcpy(statusMessage, "No input file specified");
+        exit(EXIT_FAILURE);
+    }
+    
+    if(!strlen(outputFilePath)) {
+        strcpy(statusMessage, "No output file specified");
+        exit(EXIT_FAILURE);
+    }
+    
+    FILE *inFile = fopen(inputFilePath, "rb");
+    if (inFile == NULL) {
+        printFileError(inputFilePath, errno);
+        exit(EXIT_FAILURE);
+    }
+    FILE *outFile = fopen(outputFilePath, "wb+");
     if (outFile == NULL) {
-        printFileError(argv[3], errno);
+        printFileError(outputFilePath, errno);
         exit(EXIT_FAILURE);
     }
 
@@ -144,20 +258,9 @@ int main(int argc, char *argv[])
     
     counter.counterInt = 0;
     key.keyInt = 0;
+    k = 0;
 
-    if (strcmp(argv[1], "-e") == 0) {
-
-        if (argc == 4) {
-            userPass = getPass("Enter password to encrypt with: ");
-
-            /*Get the password again to verify it wasn't misspelled*/
-            if (strcmp(userPass, getPass("Verify password: ")) != 0) {
-                printf("\nPasswords do not match.  Nothing done.\n\n");
-                exit(EXIT_FAILURE);
-            }
-        } else if (argc == 5) {
-            snprintf(userPass, MAX_PASS_SIZE, "%s", argv[4]);
-        }
+    if (action == 'e') {
 
         genYaxaSalt();
 
@@ -167,25 +270,30 @@ int main(int argc, char *argv[])
         
         genPassTag();
 
-        fileSize = getFileSize(argv[2]);
+        fileSize = getFileSize(inputFilePath);
 
         /*Prepend salt to head of file*/
-        if (fwriteWErrCheck(yaxaSalt, sizeof(unsigned char), YAXA_SALT_SIZE, outFile) != 0) {
+        if (fwriteWErrCheck(yaxaSalt, sizeof(*yaxaSalt), YAXA_SALT_SIZE, outFile) != 0) {
             printSysError(returnVal);
+            printError("Could not write salt");
             exit(EXIT_FAILURE);
         }
 
         /*Write passKeyedHash to head of file next to salt*/
-        if (fwriteWErrCheck(passKeyedHash, sizeof(unsigned char), PASS_KEYED_HASH_SIZE, outFile) != 0) {
+        if (fwriteWErrCheck(passKeyedHash, sizeof(*passKeyedHash), PASS_KEYED_HASH_SIZE, outFile) != 0) {
             printSysError(returnVal);
+            printError("Could not write password hash");
             exit(EXIT_FAILURE);
         }
 
+        strcpy(statusMessage,"Encrypting...");
+        
         /*Encrypt file and write it out*/
         doCrypt(inFile, outFile, fileSize);
 
         if(fclose(inFile) != 0) {
             printSysError(errno);
+            printError("Error closing file");
             exit(EXIT_FAILURE);
         }
 
@@ -198,32 +306,35 @@ int main(int argc, char *argv[])
         OPENSSL_cleanse(hmacKey, HMAC_KEY_SIZE);
 
         /*Write the MAC to the end of the file*/
-        if (fwriteWErrCheck(generatedMAC, sizeof(unsigned char), MAC_SIZE, outFile) != 0) {
+        if (fwriteWErrCheck(generatedMAC, sizeof(*generatedMAC), MAC_SIZE, outFile) != 0) {
             printSysError(returnVal);
+            printError("Could not write MAC");
             exit(EXIT_FAILURE);
         }
 
         if(fclose(outFile) != 0) {
             printSysError(errno);
+            printError("Could not close file");
             exit(EXIT_FAILURE);
         }
+        
+        strcpy(statusMessage,"File encrypted");
+        
+        exit(EXIT_SUCCESS);
 
-    } else if (strcmp(argv[1], "-d") == 0) {
-
-        if (argc == 4)
-            userPass = getPass("Enter password to decrypt with: ");
-        else if (argc == 5)
-            snprintf(userPass, MAX_PASS_SIZE, "%s", argv[4]);
+    } else if (action == 'd') {
 
         /*Read yaxaSalt from head of cipher-text*/
-        if (freadWErrCheck(yaxaSalt, sizeof(unsigned char), YAXA_SALT_SIZE, inFile) != 0) {
+        if (freadWErrCheck(yaxaSalt, sizeof(*yaxaSalt), YAXA_SALT_SIZE, inFile) != 0) {
             printSysError(returnVal);
+            printError("Could not read salt");
             exit(EXIT_FAILURE);
         }
 
         /*Get passKeyedHashFromFile*/
-        if (freadWErrCheck(passKeyedHashFromFile, sizeof(unsigned char), PASS_KEYED_HASH_SIZE, inFile) != 0) {
+        if (freadWErrCheck(passKeyedHashFromFile, sizeof(*passKeyedHashFromFile), PASS_KEYED_HASH_SIZE, inFile) != 0) {
             printSysError(returnVal);
+            printError("Could not read password hash");
             exit(EXIT_FAILURE);
         }
 
@@ -235,17 +346,19 @@ int main(int argc, char *argv[])
 
         if (CRYPTO_memcmp(passKeyedHash, passKeyedHashFromFile, PASS_KEYED_HASH_SIZE) != 0) {
             printf("Wrong password\n");
+            strcpy(statusMessage,"Wrong password");
             exit(EXIT_FAILURE);
         }
 
         /*Get filesize, discounting the salt and passKeyedHash*/
-        fileSize = getFileSize(argv[2]) - (YAXA_SALT_SIZE + PASS_KEYED_HASH_SIZE);
+        fileSize = getFileSize(inputFilePath) - (YAXA_SALT_SIZE + PASS_KEYED_HASH_SIZE);
 
         /*Move file position to the start of the MAC*/
         fseek(inFile, (fileSize + YAXA_SALT_SIZE + PASS_KEYED_HASH_SIZE) - MAC_SIZE, SEEK_SET);
 
-        if (freadWErrCheck(fileMAC, sizeof(unsigned char), MAC_SIZE, inFile) != 0) {
+        if (freadWErrCheck(fileMAC, sizeof(*fileMAC), MAC_SIZE, inFile) != 0) {
             printSysError(returnVal);
+            printError("Could not read MAC");
             exit(EXIT_FAILURE);
         }
 
@@ -257,6 +370,7 @@ int main(int argc, char *argv[])
         /*Verify MAC*/
         if (CRYPTO_memcmp(fileMAC, generatedMAC, MAC_SIZE) != 0) {
             printf("Message authentication failed\n");
+            strcpy(statusMessage,"Authentication failure");
             exit(EXIT_FAILURE);
         }
 
@@ -264,52 +378,63 @@ int main(int argc, char *argv[])
 
         /*Reset file posiiton to beginning of cipher-text after the salt and pass tag*/
         fseek(inFile, YAXA_SALT_SIZE + PASS_KEYED_HASH_SIZE, SEEK_SET);
+        
+        strcpy(statusMessage,"Decrypting...");
 
         /*Now decrypt the cipher-text, disocounting the size of the MAC*/
         doCrypt(inFile, outFile, fileSize - MAC_SIZE);
 
         if(fclose(outFile) != 0) {
             printSysError(errno);
+            printError("Could not close file");
             exit(EXIT_FAILURE);
         }
         if(fclose(inFile) != 0) {
             printSysError(errno);
+            printError("Could not close file");
             exit(EXIT_FAILURE);
         }
+        
+        strcpy(statusMessage, "File decrypted");
+        
+        exit(EXIT_SUCCESS);
     }
-
-    return EXIT_SUCCESS;
 }
 
 void allocateBuffers()
 {
-    yaxaKey = calloc(YAXA_KEYBUF_SIZE, sizeof(unsigned char));
+    yaxaKey = calloc(YAXA_KEYBUF_SIZE, sizeof(*yaxaKey));
     if (yaxaKey == NULL) {
         printSysError(errno);
+        printError("Could not allocate yaxaKey buffer");
         exit(EXIT_FAILURE);
     }
 
-    userPass = calloc(YAXA_KEY_LENGTH, sizeof(unsigned char));
+    userPass = calloc(YAXA_KEY_LENGTH, sizeof(*userPass));
     if (userPass == NULL) {
         printSysError(errno);
+        printError("Could not allocate userPass buffer");
         exit(EXIT_FAILURE);
     }
 
-    yaxaKeyChunk = calloc(YAXA_KEY_CHUNK_SIZE, sizeof(unsigned char));
+    yaxaKeyChunk = calloc(YAXA_KEY_CHUNK_SIZE, sizeof(*yaxaKeyChunk));
     if (yaxaKeyChunk == NULL) {
         printSysError(errno);
+        printError("Could not allocate yaxaKeyChunk buffer");
         exit(EXIT_FAILURE);
     }
 
-    yaxaSalt = calloc(YAXA_SALT_SIZE, sizeof(unsigned char));
+    yaxaSalt = calloc(YAXA_SALT_SIZE, sizeof(*yaxaSalt));
     if (yaxaSalt == NULL) {
         printSysError(errno);
+        printError("Could not allocate yaxaSalt buffer");
         exit(EXIT_FAILURE);
     }
 
-    hmacKey = calloc(HMAC_KEY_SIZE, sizeof(unsigned char));
+    hmacKey = calloc(HMAC_KEY_SIZE, sizeof(*hmacKey));
     if (hmacKey == NULL) {
         printSysError(errno);
+        printError("Could not allocate hmacKey buffer");
         exit(EXIT_FAILURE);
     }
 }
@@ -334,24 +459,27 @@ void doCrypt(FILE *inFile, FILE *outFile, uint64_t fileSize)
 {
     uint64_t outInt, inInt;
 
-    for (uint64_t i = 0; i < (fileSize); i += sizeof(uint64_t)) {
+    for (uint64_t i = 0; i < (fileSize); i += sizeof(i)) {
 
-        if (freadWErrCheck(&inInt, sizeof(uint64_t), 1, inFile) != 0) {
+        if (freadWErrCheck(&inInt, sizeof(inInt), 1, inFile) != 0) {
             printSysError(returnVal);
+            printError("Could not read file for encryption/decryption");
             exit(EXIT_FAILURE);
         }
 
         outInt = yaxa(inInt);
 
-        /*Write remainder of fileSize % sizeof(uint64_t) on the laster iteration if fileSize isn't a multiple of uint64_t*/
-        if ((i + sizeof(uint64_t)) > fileSize) {
-            if (fwriteWErrCheck(&outInt, sizeof(uint8_t), fileSize % sizeof(uint64_t), outFile) != 0) {
+        /*Write remainder of fileSize % sizeof(outInt) on the last iteration if fileSize isn't a multiple of uint64_t*/
+        if ((i + sizeof(i)) > fileSize) {
+            if (fwriteWErrCheck(&outInt, 1, fileSize % sizeof(outInt), outFile) != 0) {
                 printSysError(returnVal);
+                printError("Could not write file for encryption/decryption");
                 exit(EXIT_FAILURE);
             }
         } else {
-            if (fwriteWErrCheck(&outInt, sizeof(uint64_t), 1, outFile) != 0) {
+            if (fwriteWErrCheck(&outInt, sizeof(outInt), 1, outFile) != 0) {
                 printSysError(returnVal);
+                printError("Could not write file for encryption/decryption");
                 exit(EXIT_FAILURE);
             }
         }
@@ -401,9 +529,10 @@ void genHMAC(FILE *dataFile, uint64_t fileSize)
     for (i = 0; i < fileSize; i++) {
         if (freadWErrCheck(&inByte, sizeof(unsigned char), 1, dataFile) != 0) {
             printSysError(returnVal);
+            printError("Could not generate HMAC");
             exit(EXIT_FAILURE);
         }
-        HMAC_Update(ctx, (unsigned char *)&inByte, sizeof(unsigned char));
+        HMAC_Update(ctx, (unsigned char *)&inByte, sizeof(inByte));
     }
     HMAC_Final(ctx, generatedMAC, (unsigned int *)&i);
     HMAC_CTX_free(ctx);
@@ -413,7 +542,7 @@ void genHMACKey()
 {
 
     EVP_PKEY_CTX *pctx;
-    size_t outlen = sizeof(unsigned char) * HMAC_KEY_SIZE;
+    size_t outlen = sizeof(*hmacKey) * HMAC_KEY_SIZE;
     pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, NULL);
     
     if (EVP_PKEY_derive_init(pctx) <= 0) {
@@ -448,7 +577,7 @@ void genHMACKey()
 void genPassTag()
 {
     
-    if (HMAC(EVP_sha512(), hmacKey, HMAC_KEY_SIZE, userPass, strlen(userPass), passKeyedHash, HMACLengthPtr) == NULL) {
+    if (HMAC(EVP_sha512(), hmacKey, HMAC_KEY_SIZE, (unsigned char *)userPass, strlen(userPass), passKeyedHash, HMACLengthPtr) == NULL) {
         printError("Password keyed-hash failure");
         ERR_print_errors_fp(stderr);
         exit(EXIT_FAILURE);
@@ -457,10 +586,11 @@ void genPassTag()
 
 void genYaxaKey()
 {
+    strcpy(statusMessage,"Deriving key...");
     /*Derive a 64-byte key to expand*/
     EVP_PKEY_CTX *pctx;
 
-    size_t outlen = YAXA_KEY_CHUNK_SIZE;
+    size_t outlen = sizeof(*yaxaKeyChunk) * YAXA_KEY_CHUNK_SIZE;
     pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_SCRYPT, NULL);
 
     if (EVP_PKEY_derive_init(pctx) <= 0) {
@@ -508,7 +638,7 @@ void genYaxaKey()
     for (int i = 1; i < YAXA_SALT_SIZE; i++) {
                 
         EVP_PKEY_CTX *pctx;
-        size_t outlen = sizeof(unsigned char) * YAXA_KEY_CHUNK_SIZE;
+        size_t outlen = sizeof(*yaxaKeyChunk) * YAXA_KEY_CHUNK_SIZE;
         pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, NULL);
         
         if (EVP_PKEY_derive_init(pctx) <= 0) {
@@ -565,61 +695,6 @@ uint64_t getFileSize(const char *filename)
     return st.st_size;
 }
 
-char *getPass(const char *prompt)
-{
-    gotPassFromCmdLine = true;
-    size_t len = 0;
-    char *pass = NULL;
-
-    size_t nread;
-
-    /* Turn echoing off and fail if we can’t. */
-    if (tcgetattr(fileno(stdin), &termisOld) != 0)
-        exit(EXIT_FAILURE);
-    termiosNew = termisOld;
-    termiosNew.c_lflag &= ~ECHO;
-    if (tcsetattr(fileno(stdin), TCSAFLUSH, &termiosNew) != 0)
-        exit(EXIT_FAILURE);
-
-    /* Read the password. */
-    printf("\n%s", prompt);
-    nread = getline(&pass, &len, stdin);
-    if (nread == -1)
-        exit(EXIT_FAILURE);
-    else if (nread > MAX_PASS_SIZE) {
-        /* Restore terminal. */
-        (void)tcsetattr(fileno(stdin), TCSAFLUSH, &termisOld);
-        for (int i = 0; i < nread; i++)
-            pass[i] = 0;
-        free(pass);
-        printf("\nPassword was too large\n");
-        exit(EXIT_FAILURE);
-    } else {
-        /*Replace newline with null terminator*/
-        pass[nread - 1] = '\0';
-    }
-
-    /* Restore terminal. */
-    (void)tcsetattr(fileno(stdin), TCSAFLUSH, &termisOld);
-
-    printf("\n");
-    return pass;
-}
-
-int printSyntax(char *arg)
-{
-    printf("\
-\nUse: \
-\n\n%s [-e|-d] infile outfile [pass]\
-\n-e - encrypt infile to outfile\
-\n-d - decrypt infile to outfile\
-\n\
-",
-           arg);
-    printf("\nThis product includes software developed by the OpenSSL Project for use in the OpenSSL Toolkit. (http://www.openssl.org/)\n");
-    return EXIT_FAILURE;
-}
-
 void signalHandler(int signum)
 {
     printf("\nCaught signal %d\nCleaning up buffers...\n", signum);
@@ -638,7 +713,7 @@ void signalHandler(int signum)
 uint64_t yaxa(uint64_t messageInt)
 {
     /*Fill up 64-bit key integer with 8 8-bit bytes from yaxaKey*/
-    for (uint8_t i = 0; i < sizeof(uint64_t); i++)
+    for (uint8_t i = 0; i < sizeof(key.keyInt); i++)
         key.keyBytes[i] = yaxaKey[k++];
 
     /*Reset to the start of the key if reached the end*/
@@ -649,4 +724,126 @@ uint64_t yaxa(uint64_t messageInt)
     /*All values are 64-bit*/
     /*Increment counter variable too*/
     return counter.counterInt++ ^ key.keyInt ^ messageInt;
+}
+
+static gboolean updateStatus(gpointer user_data)
+{
+    statusContextID = gtk_statusbar_get_context_id (GTK_STATUSBAR (statusBar), "Statusbar");
+    gtk_statusbar_push (GTK_STATUSBAR (statusBar), GPOINTER_TO_INT (statusContextID), statusMessage);
+}
+
+void on_encryptButton_clicked(GtkWidget *wid, gpointer ptr)
+{
+    gboolean passwordsMatch = FALSE;
+    
+    inputFilePath = gtk_entry_get_text (GTK_ENTRY (inputFileNameBox));
+    outputFilePath = gtk_entry_get_text (GTK_ENTRY (outputFileNameBox));
+    
+    passWord = gtk_entry_get_text (GTK_ENTRY (passwordBox));
+    verificationPass = gtk_entry_get_text (GTK_ENTRY (passwordVerificationBox));
+    if(strcmp(passWord,verificationPass) == 0)
+        passwordsMatch = TRUE;
+    
+    snprintf(userPass,MAX_PASS_SIZE,"%s",passWord);
+    
+    gtk_entry_set_text(GTK_ENTRY (passwordBox), "");
+    OPENSSL_cleanse((void *)passWord, strlen(passWord));
+    gtk_entry_set_text(GTK_ENTRY (passwordBox), passWord);
+    
+    gtk_entry_set_text(GTK_ENTRY (passwordVerificationBox), "");
+    OPENSSL_cleanse((void *)verificationPass, strlen(verificationPass));
+    gtk_entry_set_text(GTK_ENTRY (passwordVerificationBox), verificationPass);
+    
+    if (passwordsMatch == FALSE) {
+        strcpy(statusMessage,"Passwords didn't match");
+    } else if(passwordsMatch == TRUE) {
+        action = 'e';
+        strcpy(statusMessage,"Starting encryption...");
+        workThread();
+    }
+}
+
+void on_decryptButton_clicked(GtkWidget *wid, gpointer ptr)
+{
+    inputFilePath = gtk_entry_get_text (GTK_ENTRY (inputFileNameBox));
+    outputFilePath = gtk_entry_get_text (GTK_ENTRY (outputFileNameBox));
+    
+    passWord = gtk_entry_get_text (GTK_ENTRY (passwordBox));
+    verificationPass = gtk_entry_get_text (GTK_ENTRY (passwordVerificationBox));
+    
+    snprintf(userPass,MAX_PASS_SIZE,"%s",passWord);
+    
+    gtk_entry_set_text(GTK_ENTRY (passwordBox), "");
+    OPENSSL_cleanse((void *)passWord, strlen(passWord));
+    gtk_entry_set_text(GTK_ENTRY (passwordBox), passWord);
+    
+    if(strlen(verificationPass)) {
+        gtk_entry_set_text(GTK_ENTRY (passwordVerificationBox), "");
+        OPENSSL_cleanse((void *)verificationPass, strlen(verificationPass));
+        gtk_entry_set_text(GTK_ENTRY (passwordVerificationBox), verificationPass);
+    }
+    
+    action = 'd';
+    strcpy(statusMessage,"Starting decryption...");
+    workThread();
+}
+
+static void inputFileSelect (GtkWidget *wid, gpointer ptr)
+{
+    GtkWidget *dialog;
+    GtkFileChooserAction action = GTK_FILE_CHOOSER_ACTION_OPEN;
+    gint res;
+    char *fileName;
+    
+    dialog = gtk_file_chooser_dialog_new ("Open File",
+                                          GTK_WINDOW (ptr),
+                                          action,
+                                          "Cancel",
+                                          GTK_RESPONSE_CANCEL,
+                                          "Open",
+                                          GTK_RESPONSE_ACCEPT,
+                                          NULL);
+    
+    res = gtk_dialog_run (GTK_DIALOG (dialog));
+    if (res == GTK_RESPONSE_ACCEPT)
+      {
+        GtkFileChooser *chooser = GTK_FILE_CHOOSER (dialog);
+        fileName = gtk_file_chooser_get_filename (chooser);
+        gtk_entry_set_text(GTK_ENTRY (inputFileNameBox), fileName);
+      }
+    
+    gtk_widget_destroy (dialog);
+}
+
+static void outputFileSelect (GtkWidget *wid, gpointer ptr)
+{
+    GtkWidget *dialog;
+    GtkFileChooserAction action = GTK_FILE_CHOOSER_ACTION_SAVE;
+    gint res;
+    char *fileName;
+    
+    dialog = gtk_file_chooser_dialog_new ("Save File",
+                                          GTK_WINDOW (ptr),
+                                          action,
+                                          "Cancel",
+                                          GTK_RESPONSE_CANCEL,
+                                          "Save As",
+                                          GTK_RESPONSE_ACCEPT,
+                                          NULL);
+    
+    res = gtk_dialog_run (GTK_DIALOG (dialog));
+    if (res == GTK_RESPONSE_ACCEPT)
+      {
+        GtkFileChooser *chooser = GTK_FILE_CHOOSER (dialog);
+        fileName = gtk_file_chooser_get_filename (chooser);
+        gtk_entry_set_text(GTK_ENTRY (outputFileNameBox), fileName);
+      }
+    
+    gtk_widget_destroy (dialog);
+}
+
+void passVisibilityToggle (GtkWidget *wid, gpointer ptr)
+{
+    gtk_entry_set_visibility(GTK_ENTRY (passwordBox), gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (wid)));
+    gtk_entry_set_visibility(GTK_ENTRY (passwordVerificationBox), gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (wid)));
 }
