@@ -744,19 +744,19 @@ void on_encryptButton_clicked(GtkWidget *wid, gpointer ptr)
     if(strcmp(passWord,verificationPass) == 0)
         passwordsMatch = TRUE;
     
-    snprintf(userPass,MAX_PASS_SIZE,"%s",passWord);
-    
-    gtk_entry_set_text(GTK_ENTRY (passwordBox), "");
-    OPENSSL_cleanse((void *)passWord, strlen(passWord));
-    gtk_entry_set_text(GTK_ENTRY (passwordBox), passWord);
-    
-    gtk_entry_set_text(GTK_ENTRY (passwordVerificationBox), "");
-    OPENSSL_cleanse((void *)verificationPass, strlen(verificationPass));
-    gtk_entry_set_text(GTK_ENTRY (passwordVerificationBox), verificationPass);
-    
     if (passwordsMatch == FALSE) {
         strcpy(statusMessage,"Passwords didn't match");
     } else if(passwordsMatch == TRUE) {
+        snprintf(userPass,MAX_PASS_SIZE,"%s",passWord);
+    
+        gtk_entry_set_text(GTK_ENTRY (passwordBox), "");
+        OPENSSL_cleanse((void *)passWord, strlen(passWord));
+        gtk_entry_set_text(GTK_ENTRY (passwordBox), passWord);
+        
+        gtk_entry_set_text(GTK_ENTRY (passwordVerificationBox), "");
+        OPENSSL_cleanse((void *)verificationPass, strlen(verificationPass));
+        gtk_entry_set_text(GTK_ENTRY (passwordVerificationBox), verificationPass);
+        
         action = 'e';
         strcpy(statusMessage,"Starting encryption...");
         workThread();
