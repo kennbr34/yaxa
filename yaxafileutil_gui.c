@@ -25,7 +25,7 @@
 #define printSysError(errCode) \
     { \
         fprintf(stderr, "%s:%s:%d: %s\n", __FILE__, __func__, __LINE__, strerror(errCode)); \
-        snprintf(statusMessage,256, "%s:%s:%d: %s", __FILE__, __func__, __LINE__, strerror(errCode)); \
+        snprintf(statusMessage,256, "%s: %s:%s:%d", strerror(errCode), __FILE__, __func__, __LINE__); \
     }
 
 #define printFileError(fileName, errCode) \
@@ -37,7 +37,7 @@
 #define printError(errMsg) \
     { \
         fprintf(stderr, "%s:%s:%d: %s\n", __FILE__, __func__, __LINE__, errMsg); \
-        snprintf(statusMessage, 256, "%s:%s:%d: %s\n", __FILE__, __func__, __LINE__, errMsg); \
+        snprintf(statusMessage, 256, " %s: %s:%s:%d", errMsg, __FILE__, __func__, __LINE__); \
     }
 
 #define MAX_PASS_SIZE 512
@@ -117,6 +117,8 @@ static void inputFileSelect (GtkWidget *wid, gpointer ptr);
 static void outputFileSelect (GtkWidget *wid, gpointer ptr);
 void passVisibilityToggle (GtkWidget *wid, gpointer ptr);
 static gboolean updateStatus(gpointer user_data);
+static gboolean updateProgress(gpointer user_data);
+static gboolean updateOverallProgress(gpointer user_data);
 int workThread();
 
 GtkWidget *inputFileNameBox;
@@ -135,10 +137,18 @@ GtkWidget *statusBar;
 guint statusContextID;
 char *statusMessage;
 
+GtkWidget *overallProgressBar;
+double *overallProgressFraction;
+
+GtkWidget *progressBar;
+double *progressFraction;
+
 int main(int argc, char *argv[])
 {
     
     statusMessage = mmap(NULL, 256, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+    progressFraction = mmap(NULL, sizeof(double), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+    overallProgressFraction = mmap(NULL, sizeof(double), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
     
     signal(SIGINT, signalHandler);
 
@@ -191,10 +201,22 @@ int main(int argc, char *argv[])
     GtkWidget *decryptButton = gtk_button_new_with_label ("Decrypt");
     g_signal_connect (decryptButton, "clicked", G_CALLBACK (on_decryptButton_clicked), NULL);
     
+    progressBar = gtk_progress_bar_new ();
+    gtk_progress_bar_set_text (GTK_PROGRESS_BAR (progressBar), "Step Progress");
+    gtk_progress_bar_set_show_text (GTK_PROGRESS_BAR (progressBar), TRUE);
+    *progressFraction = 0.0;
+    g_timeout_add (50, updateProgress, NULL);
+    
+    overallProgressBar = gtk_progress_bar_new ();
+    gtk_progress_bar_set_text (GTK_PROGRESS_BAR (overallProgressBar), "Overall Progress");
+    gtk_progress_bar_set_show_text (GTK_PROGRESS_BAR (overallProgressBar), TRUE);
+    *overallProgressFraction = 0.0;
+    g_timeout_add (50, updateOverallProgress, NULL);
+    
     statusBar = gtk_statusbar_new ();
     gtk_widget_set_tooltip_text (statusBar, "Program will show status updates here");
     strcpy(statusMessage,"Ready");
-    g_timeout_add (500, updateStatus, statusMessage);
+    g_timeout_add (50, updateStatus, statusMessage);
     
     GtkWidget *grid = gtk_grid_new();
     gtk_widget_set_hexpand (inputFileLabel, TRUE);
@@ -211,7 +233,10 @@ int main(int argc, char *argv[])
     gtk_grid_attach (GTK_GRID (grid), visibilityButton, 1, 8, 1, 1);
     gtk_grid_attach (GTK_GRID (grid), encryptButton, 0, 12, 2, 1);
     gtk_grid_attach (GTK_GRID (grid), decryptButton, 0, 13, 2, 1);
-    gtk_grid_attach (GTK_GRID (grid), statusBar, 0, 14, 2, 1);
+    gtk_grid_attach (GTK_GRID (grid), progressBar, 0, 14, 2, 1);
+    gtk_grid_attach (GTK_GRID (grid), overallProgressBar, 0, 15, 2, 1);
+    gtk_grid_attach (GTK_GRID (grid), statusBar, 0, 16, 2, 1);
+    
     
     gtk_container_add (GTK_CONTAINER (win), grid);
     
@@ -262,16 +287,26 @@ int workThread()
 
     if (action == 'e') {
 
+        strcpy(statusMessage,"Generating salt...");
+        *overallProgressFraction = .1;
         genYaxaSalt();
 
+        strcpy(statusMessage,"Generating enecryption key...");
+        *overallProgressFraction = .2;
         genYaxaKey();
         
+        strcpy(statusMessage,"Generation auth key...");
+        *overallProgressFraction = .3;
         genHMACKey();
         
+        strcpy(statusMessage,"Password keyed-hash...");
+        *overallProgressFraction = .4;
         genPassTag();
 
         fileSize = getFileSize(inputFilePath);
-
+        
+        strcpy(statusMessage,"Writing salt...");
+        *overallProgressFraction = .5;
         /*Prepend salt to head of file*/
         if (fwriteWErrCheck(yaxaSalt, sizeof(*yaxaSalt), YAXA_SALT_SIZE, outFile) != 0) {
             printSysError(returnVal);
@@ -279,6 +314,8 @@ int workThread()
             exit(EXIT_FAILURE);
         }
 
+        strcpy(statusMessage,"Writing password keyed-hash...");
+        *overallProgressFraction = .6;
         /*Write passKeyedHash to head of file next to salt*/
         if (fwriteWErrCheck(passKeyedHash, sizeof(*passKeyedHash), PASS_KEYED_HASH_SIZE, outFile) != 0) {
             printSysError(returnVal);
@@ -287,6 +324,7 @@ int workThread()
         }
 
         strcpy(statusMessage,"Encrypting...");
+        *overallProgressFraction = .7;
         
         /*Encrypt file and write it out*/
         doCrypt(inFile, outFile, fileSize);
@@ -300,7 +338,10 @@ int workThread()
         /*Now get new filesize and reset flie position to beginning*/
         fileSize = ftell(outFile);
         rewind(outFile);
-
+        
+        strcpy(statusMessage,"Generating MAC...");
+        *overallProgressFraction = .8;
+        
         genHMAC(outFile, fileSize);
 
         OPENSSL_cleanse(hmacKey, HMAC_KEY_SIZE);
@@ -312,6 +353,9 @@ int workThread()
             exit(EXIT_FAILURE);
         }
 
+        strcpy(statusMessage,"Saving file...");
+        *overallProgressFraction = .9;
+
         if(fclose(outFile) != 0) {
             printSysError(errno);
             printError("Could not close file");
@@ -319,11 +363,14 @@ int workThread()
         }
         
         strcpy(statusMessage,"File encrypted");
+        *overallProgressFraction = 1;
         
         exit(EXIT_SUCCESS);
 
     } else if (action == 'd') {
 
+        strcpy(statusMessage,"Reading salt...");
+        *overallProgressFraction = .1;
         /*Read yaxaSalt from head of cipher-text*/
         if (freadWErrCheck(yaxaSalt, sizeof(*yaxaSalt), YAXA_SALT_SIZE, inFile) != 0) {
             printSysError(returnVal);
@@ -331,6 +378,8 @@ int workThread()
             exit(EXIT_FAILURE);
         }
 
+        strcpy(statusMessage,"Reading pass keyed-hash...");
+        *overallProgressFraction = .2;
         /*Get passKeyedHashFromFile*/
         if (freadWErrCheck(passKeyedHashFromFile, sizeof(*passKeyedHashFromFile), PASS_KEYED_HASH_SIZE, inFile) != 0) {
             printSysError(returnVal);
@@ -338,12 +387,20 @@ int workThread()
             exit(EXIT_FAILURE);
         }
 
+        strcpy(statusMessage,"Generating decryption key...");
+        *overallProgressFraction = .3;
         genYaxaKey();
         
+        strcpy(statusMessage,"Generating auth key...");
+        *overallProgressFraction = .4;
         genHMACKey();
         
+        strcpy(statusMessage,"Generation password keyed-hash...");
+        *overallProgressFraction = .5;
         genPassTag();
 
+        strcpy(statusMessage,"Verifying password...");
+        *overallProgressFraction = .6;
         if (CRYPTO_memcmp(passKeyedHash, passKeyedHashFromFile, PASS_KEYED_HASH_SIZE) != 0) {
             printf("Wrong password\n");
             strcpy(statusMessage,"Wrong password");
@@ -365,6 +422,8 @@ int workThread()
         /*Reset file position to beginning of file*/
         rewind(inFile);
 
+        strcpy(statusMessage,"Authenticating data...");
+        *overallProgressFraction = .7;
         genHMAC(inFile, (fileSize + (YAXA_SALT_SIZE + PASS_KEYED_HASH_SIZE)) - MAC_SIZE);
 
         /*Verify MAC*/
@@ -380,10 +439,14 @@ int workThread()
         fseek(inFile, YAXA_SALT_SIZE + PASS_KEYED_HASH_SIZE, SEEK_SET);
         
         strcpy(statusMessage,"Decrypting...");
+        *overallProgressFraction = .8;
 
         /*Now decrypt the cipher-text, disocounting the size of the MAC*/
         doCrypt(inFile, outFile, fileSize - MAC_SIZE);
 
+        strcpy(statusMessage,"Saving file...");
+        *overallProgressFraction = .9;
+        
         if(fclose(outFile) != 0) {
             printSysError(errno);
             printError("Could not close file");
@@ -396,6 +459,7 @@ int workThread()
         }
         
         strcpy(statusMessage, "File decrypted");
+        *overallProgressFraction = 1;
         
         exit(EXIT_SUCCESS);
     }
@@ -458,6 +522,7 @@ void cleanUpBuffers()
 void doCrypt(FILE *inFile, FILE *outFile, uint64_t fileSize)
 {
     uint64_t outInt, inInt;
+    *progressFraction = 0.0;
 
     for (uint64_t i = 0; i < (fileSize); i += sizeof(i)) {
 
@@ -483,6 +548,7 @@ void doCrypt(FILE *inFile, FILE *outFile, uint64_t fileSize)
                 exit(EXIT_FAILURE);
             }
         }
+        *progressFraction = (double)i / (double)fileSize;
     }
 }
 
@@ -519,6 +585,7 @@ int fwriteWErrCheck(void *ptr, size_t size, size_t nmemb, FILE *stream)
 void genHMAC(FILE *dataFile, uint64_t fileSize)
 {
     unsigned char inByte;
+    *progressFraction = 0.0;
 
     /*Initiate HMAC*/
     HMAC_CTX *ctx = HMAC_CTX_new();
@@ -533,6 +600,7 @@ void genHMAC(FILE *dataFile, uint64_t fileSize)
             exit(EXIT_FAILURE);
         }
         HMAC_Update(ctx, (unsigned char *)&inByte, sizeof(inByte));
+        *progressFraction = (double)i/(double)fileSize;
     }
     HMAC_Final(ctx, generatedMAC, (unsigned int *)&i);
     HMAC_CTX_free(ctx);
@@ -540,6 +608,8 @@ void genHMAC(FILE *dataFile, uint64_t fileSize)
 
 void genHMACKey()
 {
+
+    strcpy(statusMessage,"Deriving auth key...");
 
     EVP_PKEY_CTX *pctx;
     size_t outlen = sizeof(*hmacKey) * HMAC_KEY_SIZE;
@@ -575,18 +645,22 @@ void genHMACKey()
 }
 
 void genPassTag()
-{
-    
+{    
+    *progressFraction = 0;
     if (HMAC(EVP_sha512(), hmacKey, HMAC_KEY_SIZE, (unsigned char *)userPass, strlen(userPass), passKeyedHash, HMACLengthPtr) == NULL) {
         printError("Password keyed-hash failure");
         ERR_print_errors_fp(stderr);
         exit(EXIT_FAILURE);
     }
+    *progressFraction = 1;
 }
 
 void genYaxaKey()
 {
-    strcpy(statusMessage,"Deriving key...");
+    *progressFraction = 0;
+    double keyChunkFloat = YAXA_KEY_CHUNK_SIZE;
+    double keyBufFloat = YAXA_KEYBUF_SIZE;
+    
     /*Derive a 64-byte key to expand*/
     EVP_PKEY_CTX *pctx;
 
@@ -633,6 +707,8 @@ void genYaxaKey()
     
     /*Copy that first 64-byte chunk into the yaxaKeyArray*/
     memcpy(yaxaKeyArray[0], yaxaKeyChunk, YAXA_KEY_CHUNK_SIZE);
+    
+    *progressFraction = keyChunkFloat / keyBufFloat;
 
     /*Expand that 64-byte key into YAXA_KEYBUF_SIZE key*/
     for (int i = 1; i < YAXA_SALT_SIZE; i++) {
@@ -666,6 +742,8 @@ void genYaxaKey()
 
         /*Copy the 64-byte chunk into the yaxaKeyarray*/
         memcpy(yaxaKeyArray[i], yaxaKeyChunk, YAXA_KEY_CHUNK_SIZE);
+        
+        *progressFraction = ((double)i * keyChunkFloat) / keyBufFloat;
     }
 
     memcpy(yaxaKey, yaxaKeyArray, YAXA_KEYBUF_SIZE);
@@ -676,8 +754,9 @@ void genYaxaKey()
 
 void genYaxaSalt()
 {
-
     unsigned char b; /*Random byte*/
+    double saltSizeFloat = YAXA_SALT_SIZE;
+    *progressFraction = 0;
 
     for (int i = 0; i < YAXA_SALT_SIZE; i++) {
         if (!RAND_bytes(&b, 1)) {
@@ -685,6 +764,7 @@ void genYaxaSalt()
             exit(EXIT_FAILURE);
         }
         yaxaSalt[i] = b;
+        *progressFraction = (double)i/saltSizeFloat;
     }
 }
 
@@ -732,6 +812,19 @@ static gboolean updateStatus(gpointer user_data)
     gtk_statusbar_push (GTK_STATUSBAR (statusBar), GPOINTER_TO_INT (statusContextID), statusMessage);
 }
 
+static gboolean updateProgress(gpointer user_data)
+{
+    gtk_progress_bar_set_fraction (GTK_PROGRESS_BAR (progressBar), *progressFraction);
+    if(*progressFraction > 1)
+        *progressFraction = 0.0;
+}
+
+static gboolean updateOverallProgress(gpointer user_data)
+{
+    gtk_progress_bar_set_fraction (GTK_PROGRESS_BAR (overallProgressBar), *overallProgressFraction);
+    if(*overallProgressFraction > 1)
+        *overallProgressFraction = 0.0;
+}
 void on_encryptButton_clicked(GtkWidget *wid, gpointer ptr)
 {
     gboolean passwordsMatch = FALSE;

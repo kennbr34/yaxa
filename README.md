@@ -1,4 +1,4 @@
-![Screenshot_2020-03-20_22-37-52](https://user-images.githubusercontent.com/38168040/77220276-c6087500-6afb-11ea-8335-39225d8491ea.png)
+![yaxagif](https://user-images.githubusercontent.com/38168040/77262419-ec8cf400-6c52-11ea-95da-43f35cc80d9a.gif)
 
 # YAXA
 GUI for toy crypto algorithm and file-encryption utility using OpenSSL
