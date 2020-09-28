@@ -60,15 +60,15 @@
 struct termios termisOld, termiosNew;
 
 union counterUnion {
-    uint64_t counterInt;
-    uint8_t counterBytes[8];
+    unsigned __int128 counterInt;
+    uint8_t counterBytes[16];
 };
 
 union counterUnion counter;
 
 union keyUnion {
-    uint64_t keyInt;
-    uint8_t keyBytes[8];
+    unsigned __int128 keyInt;
+    uint8_t keyBytes[16];
 };
 
 union keyUnion key;
@@ -107,7 +107,7 @@ uint64_t getFileSize(const char *filename);                              /*Retur
 char *getPass(const char *prompt);                                       /*Function to retrive passwords with no echo*/
 int printSyntax(char *arg);                                              /*Print program usage and help*/
 void signalHandler(int signum);                                          /*Signal handler for Ctrl+C*/
-uint64_t yaxa(uint64_t messageInt);                                      /*YAXA encryption/decryption function*/
+unsigned __int128 yaxa(unsigned __int128 messageInt);                                      /*YAXA encryption/decryption function*/
 
 int main(int argc, char *argv[])
 {
@@ -332,25 +332,25 @@ void cleanUpBuffers()
 
 void doCrypt(FILE *inFile, FILE *outFile, uint64_t fileSize)
 {
-    uint64_t outInt, inInt;
+    unsigned __int128 outInt, inInt;
 
-    for (uint64_t i = 0; i < (fileSize); i += sizeof(uint64_t)) {
+    for (unsigned __int128 i = 0; i < (fileSize); i += sizeof(unsigned __int128)) {
 
-        if (freadWErrCheck(&inInt, sizeof(uint64_t), 1, inFile) != 0) {
+        if (freadWErrCheck(&inInt, sizeof(unsigned __int128), 1, inFile) != 0) {
             printSysError(returnVal);
             exit(EXIT_FAILURE);
         }
 
         outInt = yaxa(inInt);
 
-        /*Write remainder of fileSize % sizeof(uint64_t) on the laster iteration if fileSize isn't a multiple of uint64_t*/
-        if ((i + sizeof(uint64_t)) > fileSize) {
-            if (fwriteWErrCheck(&outInt, sizeof(uint8_t), fileSize % sizeof(uint64_t), outFile) != 0) {
+        /*Write remainder of fileSize % sizeof(unsigned __int128) on the laster iteration if fileSize isn't a multiple of unsigned __int128*/
+        if ((i + sizeof(unsigned __int128)) > fileSize) {
+            if (fwriteWErrCheck(&outInt, sizeof(uint8_t), fileSize % sizeof(unsigned __int128), outFile) != 0) {
                 printSysError(returnVal);
                 exit(EXIT_FAILURE);
             }
         } else {
-            if (fwriteWErrCheck(&outInt, sizeof(uint64_t), 1, outFile) != 0) {
+            if (fwriteWErrCheck(&outInt, sizeof(unsigned __int128), 1, outFile) != 0) {
                 printSysError(returnVal);
                 exit(EXIT_FAILURE);
             }
@@ -635,10 +635,10 @@ void signalHandler(int signum)
     exit(EXIT_FAILURE);
 }
 
-uint64_t yaxa(uint64_t messageInt)
+unsigned __int128 yaxa(unsigned __int128 messageInt)
 {
     /*Fill up 64-bit key integer with 8 8-bit bytes from yaxaKey*/
-    for (uint8_t i = 0; i < sizeof(uint64_t); i++)
+    for (uint8_t i = 0; i < sizeof(unsigned __int128); i++)
         key.keyBytes[i] = yaxaKey[k++];
 
     /*Reset to the start of the key if reached the end*/
