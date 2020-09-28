@@ -95,15 +95,15 @@ int gotPassFromCmdLine = false;
 /*Prototype functions*/
 void allocateBuffers();                                                  /*Allocates all the buffers used*/
 void cleanUpBuffers();                                                   /*Writes zeroes to all the buffers when done*/
-void doCrypt(FILE *inFile, FILE *outFile, uint64_t fileSize);            /*Encryption/Decryption routines*/
+void doCrypt(FILE *inFile, FILE *outFile, unsigned __int128 fileSize);            /*Encryption/Decryption routines*/
 int freadWErrCheck(void *ptr, size_t size, size_t nmemb, FILE *stream);  /*fread() error checking wrapper*/
 int fwriteWErrCheck(void *ptr, size_t size, size_t nmemb, FILE *stream); /*fwrite() error checking wrapper*/
-void genHMAC(FILE *dataFile, uint64_t fileSize);                         /*Generate HMAC*/
+void genHMAC(FILE *dataFile, unsigned __int128 fileSize);                         /*Generate HMAC*/
 void genHMACKey();                                                       /*Generate key for HMAC*/
 void genPassTag();                                                       /*Generate passKeyedHash*/
 void genYaxaSalt();                                                      /*Generates YAXA salt*/
 void genYaxaKey();                                                       /*YAXA key deriving function*/
-uint64_t getFileSize(const char *filename);                              /*Returns filesize using stat()*/
+unsigned __int128 getFileSize(const char *filename);                              /*Returns filesize using stat()*/
 char *getPass(const char *prompt);                                       /*Function to retrive passwords with no echo*/
 int printSyntax(char *arg);                                              /*Print program usage and help*/
 void signalHandler(int signum);                                          /*Signal handler for Ctrl+C*/
@@ -140,7 +140,7 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
-    uint64_t fileSize;
+    unsigned __int128 fileSize;
     
     counter.counterInt = 0;
     key.keyInt = 0;
@@ -330,7 +330,7 @@ void cleanUpBuffers()
     free(yaxaSalt);
 }
 
-void doCrypt(FILE *inFile, FILE *outFile, uint64_t fileSize)
+void doCrypt(FILE *inFile, FILE *outFile, unsigned __int128 fileSize)
 {
     unsigned __int128 outInt, inInt;
 
@@ -388,7 +388,7 @@ int fwriteWErrCheck(void *ptr, size_t size, size_t nmemb, FILE *stream)
     return 0;
 }
 
-void genHMAC(FILE *dataFile, uint64_t fileSize)
+void genHMAC(FILE *dataFile, unsigned __int128 fileSize)
 {
     unsigned char inByte;
 
@@ -397,7 +397,7 @@ void genHMAC(FILE *dataFile, uint64_t fileSize)
     HMAC_Init_ex(ctx, hmacKey, HMAC_KEY_SIZE, EVP_sha512(), NULL);
 
     /*HMAC the cipher-text, passtag and salt*/
-    uint64_t i; /*Declare i outside of for loop so it can be used in HMAC_Final as the size*/
+    unsigned __int128 i; /*Declare i outside of for loop so it can be used in HMAC_Final as the size*/
     for (i = 0; i < fileSize; i++) {
         if (freadWErrCheck(&inByte, sizeof(unsigned char), 1, dataFile) != 0) {
             printSysError(returnVal);
@@ -558,7 +558,7 @@ void genYaxaSalt()
     }
 }
 
-uint64_t getFileSize(const char *filename)
+unsigned __int128 getFileSize(const char *filename)
 {
     struct stat st;
     stat(filename, &st);
