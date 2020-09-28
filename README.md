@@ -1,5 +1,6 @@
 ![yaxagif](https://user-images.githubusercontent.com/38168040/77262419-ec8cf400-6c52-11ea-95da-43f35cc80d9a.gif)
-(Note: Not actual speed, GIF was edited for demonstration sake)
+
+###### (Note: Not actual speed, GIF was edited for demonstration sake)
 
 # YAXA
 GUI for toy crypto algorithm and file-encryption utility using OpenSSL
