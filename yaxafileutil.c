@@ -60,15 +60,15 @@
 struct termios termisOld, termiosNew;
 
 union counterUnion {
-    uint64_t counterInt;
-    uint8_t counterBytes[8];
+    unsigned __int128 counterInt;
+    uint8_t counterBytes[16];
 };
 
 union counterUnion counter;
 
 union keyUnion {
-    uint64_t keyInt;
-    uint8_t keyBytes[8];
+    unsigned __int128 keyInt;
+    uint8_t keyBytes[16];
 };
 
 union keyUnion key;
@@ -95,19 +95,19 @@ int gotPassFromCmdLine = false;
 /*Prototype functions*/
 void allocateBuffers();                                                  /*Allocates all the buffers used*/
 void cleanUpBuffers();                                                   /*Writes zeroes to all the buffers when done*/
-void doCrypt(FILE *inFile, FILE *outFile, uint64_t fileSize);            /*Encryption/Decryption routines*/
+void doCrypt(FILE *inFile, FILE *outFile, unsigned __int128 fileSize);            /*Encryption/Decryption routines*/
 int freadWErrCheck(void *ptr, size_t size, size_t nmemb, FILE *stream);  /*fread() error checking wrapper*/
 int fwriteWErrCheck(void *ptr, size_t size, size_t nmemb, FILE *stream); /*fwrite() error checking wrapper*/
-void genHMAC(FILE *dataFile, uint64_t fileSize);                         /*Generate HMAC*/
+void genHMAC(FILE *dataFile, unsigned __int128 fileSize);                         /*Generate HMAC*/
 void genHMACKey();                                                       /*Generate key for HMAC*/
 void genPassTag();                                                       /*Generate passKeyedHash*/
 void genYaxaSalt();                                                      /*Generates YAXA salt*/
 void genYaxaKey();                                                       /*YAXA key deriving function*/
-uint64_t getFileSize(const char *filename);                              /*Returns filesize using stat()*/
+unsigned __int128 getFileSize(const char *filename);                              /*Returns filesize using stat()*/
 char *getPass(const char *prompt);                                       /*Function to retrive passwords with no echo*/
 int printSyntax(char *arg);                                              /*Print program usage and help*/
 void signalHandler(int signum);                                          /*Signal handler for Ctrl+C*/
-uint64_t yaxa(uint64_t messageInt);                                      /*YAXA encryption/decryption function*/
+unsigned __int128 yaxa(unsigned __int128 messageInt);                                      /*YAXA encryption/decryption function*/
 
 int main(int argc, char *argv[])
 {
@@ -140,7 +140,7 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
-    uint64_t fileSize;
+    unsigned __int128 fileSize;
     
     counter.counterInt = 0;
     key.keyInt = 0;
@@ -330,27 +330,27 @@ void cleanUpBuffers()
     free(yaxaSalt);
 }
 
-void doCrypt(FILE *inFile, FILE *outFile, uint64_t fileSize)
+void doCrypt(FILE *inFile, FILE *outFile, unsigned __int128 fileSize)
 {
-    uint64_t outInt, inInt;
+    unsigned __int128 outInt, inInt;
 
-    for (uint64_t i = 0; i < (fileSize); i += sizeof(uint64_t)) {
+    for (unsigned __int128 i = 0; i < (fileSize); i += sizeof(unsigned __int128)) {
 
-        if (freadWErrCheck(&inInt, sizeof(uint64_t), 1, inFile) != 0) {
+        if (freadWErrCheck(&inInt, sizeof(unsigned __int128), 1, inFile) != 0) {
             printSysError(returnVal);
             exit(EXIT_FAILURE);
         }
 
         outInt = yaxa(inInt);
 
-        /*Write remainder of fileSize % sizeof(uint64_t) on the laster iteration if fileSize isn't a multiple of uint64_t*/
-        if ((i + sizeof(uint64_t)) > fileSize) {
-            if (fwriteWErrCheck(&outInt, sizeof(uint8_t), fileSize % sizeof(uint64_t), outFile) != 0) {
+        /*Write remainder of fileSize % sizeof(unsigned __int128) on the laster iteration if fileSize isn't a multiple of unsigned __int128*/
+        if ((i + sizeof(unsigned __int128)) > fileSize) {
+            if (fwriteWErrCheck(&outInt, sizeof(uint8_t), fileSize % sizeof(unsigned __int128), outFile) != 0) {
                 printSysError(returnVal);
                 exit(EXIT_FAILURE);
             }
         } else {
-            if (fwriteWErrCheck(&outInt, sizeof(uint64_t), 1, outFile) != 0) {
+            if (fwriteWErrCheck(&outInt, sizeof(unsigned __int128), 1, outFile) != 0) {
                 printSysError(returnVal);
                 exit(EXIT_FAILURE);
             }
@@ -388,7 +388,7 @@ int fwriteWErrCheck(void *ptr, size_t size, size_t nmemb, FILE *stream)
     return 0;
 }
 
-void genHMAC(FILE *dataFile, uint64_t fileSize)
+void genHMAC(FILE *dataFile, unsigned __int128 fileSize)
 {
     unsigned char inByte;
 
@@ -397,7 +397,7 @@ void genHMAC(FILE *dataFile, uint64_t fileSize)
     HMAC_Init_ex(ctx, hmacKey, HMAC_KEY_SIZE, EVP_sha512(), NULL);
 
     /*HMAC the cipher-text, passtag and salt*/
-    uint64_t i; /*Declare i outside of for loop so it can be used in HMAC_Final as the size*/
+    unsigned __int128 i; /*Declare i outside of for loop so it can be used in HMAC_Final as the size*/
     for (i = 0; i < fileSize; i++) {
         if (freadWErrCheck(&inByte, sizeof(unsigned char), 1, dataFile) != 0) {
             printSysError(returnVal);
@@ -558,7 +558,7 @@ void genYaxaSalt()
     }
 }
 
-uint64_t getFileSize(const char *filename)
+unsigned __int128 getFileSize(const char *filename)
 {
     struct stat st;
     stat(filename, &st);
@@ -635,10 +635,10 @@ void signalHandler(int signum)
     exit(EXIT_FAILURE);
 }
 
-uint64_t yaxa(uint64_t messageInt)
+unsigned __int128 yaxa(unsigned __int128 messageInt)
 {
     /*Fill up 64-bit key integer with 8 8-bit bytes from yaxaKey*/
-    for (uint8_t i = 0; i < sizeof(uint64_t); i++)
+    for (uint8_t i = 0; i < sizeof(unsigned __int128); i++)
         key.keyBytes[i] = yaxaKey[k++];
 
     /*Reset to the start of the key if reached the end*/
