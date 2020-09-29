@@ -1,5 +1,5 @@
 # YAXA
-GUI for toy crypto algorithm and file-encryption utility using OpenSSL
+Toy crypto algorithm and file-encryption utility using OpenSSL
 
 # Dependencies
 OpenSSL 1.1.*
