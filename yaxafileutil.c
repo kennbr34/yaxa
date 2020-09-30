@@ -637,7 +637,7 @@ void signalHandler(int signum)
 
 unsigned __int128 yaxa(unsigned __int128 messageInt)
 {
-    /*Fill up 64-bit key integer with 8 8-bit bytes from yaxaKey*/
+    /*Fill up 128-bit key integer with 16 8-bit bytes from yaxaKey*/
     for (uint8_t i = 0; i < sizeof(unsigned __int128); i++)
         key.keyBytes[i] = yaxaKey[k++];
 
@@ -646,7 +646,7 @@ unsigned __int128 yaxa(unsigned __int128 messageInt)
         k = 0;
 
     /*Ctr ^ K ^ M*/
-    /*All values are 64-bit*/
+    /*All values are 128-bit*/
     /*Increment counter variable too*/
     return counter.counterInt++ ^ key.keyInt ^ messageInt;
 }
