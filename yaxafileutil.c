@@ -698,6 +698,6 @@ unsigned __int128 yaxa(unsigned __int128 messageInt)
 
     /*Ctr ^ K ^ M*/
     /*All values are 128-bit*/
-    /*Increment counter variable too*/
-    return counter.counterInt++ ^ key.keyInt ^ messageInt;
+    
+    return (counter.counterInt *= key.keyInt) ^ key.keyInt ^ messageInt;
 }
