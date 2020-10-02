@@ -95,19 +95,20 @@ int gotPassFromCmdLine = false;
 /*Prototype functions*/
 void allocateBuffers();                                                  /*Allocates all the buffers used*/
 void cleanUpBuffers();                                                   /*Writes zeroes to all the buffers when done*/
-void doCrypt(FILE *inFile, FILE *outFile, unsigned __int128 fileSize);            /*Encryption/Decryption routines*/
+void doCrypt(FILE *inFile, FILE *outFile, unsigned __int128 fileSize);   /*Encryption/Decryption routines*/
 int freadWErrCheck(void *ptr, size_t size, size_t nmemb, FILE *stream);  /*fread() error checking wrapper*/
 int fwriteWErrCheck(void *ptr, size_t size, size_t nmemb, FILE *stream); /*fwrite() error checking wrapper*/
-void genHMAC(FILE *dataFile, unsigned __int128 fileSize);                         /*Generate HMAC*/
+void genHMAC(FILE *dataFile, unsigned __int128 fileSize);                /*Generate HMAC*/
 void genHMACKey();                                                       /*Generate key for HMAC*/
 void genPassTag();                                                       /*Generate passKeyedHash*/
 void genYaxaSalt();                                                      /*Generates YAXA salt*/
 void genYaxaKey();                                                       /*YAXA key deriving function*/
-unsigned __int128 getFileSize(const char *filename);                              /*Returns filesize using stat()*/
+void genCtrStart();														 /*Derive starting point for Ctr from key*/
+unsigned __int128 getFileSize(const char *filename);                     /*Returns filesize using stat()*/
 char *getPass(const char *prompt);                                       /*Function to retrive passwords with no echo*/
 int printSyntax(char *arg);                                              /*Print program usage and help*/
 void signalHandler(int signum);                                          /*Signal handler for Ctrl+C*/
-unsigned __int128 yaxa(unsigned __int128 messageInt);                                      /*YAXA encryption/decryption function*/
+unsigned __int128 yaxa(unsigned __int128 messageInt);                    /*YAXA encryption/decryption function*/
 
 int main(int argc, char *argv[])
 {
@@ -542,6 +543,52 @@ void genYaxaKey()
 
     OPENSSL_cleanse(yaxaKeyArray, YAXA_KEYBUF_SIZE);
     OPENSSL_cleanse(yaxaKeyChunk, YAXA_KEY_CHUNK_SIZE);
+}
+
+void genCtrStart()
+{	
+	/*Use these bytes to initialize counter.counterInt*/
+	uint8_t initBytes[sizeof(counter.counterInt)];
+	
+	/*Use HKDF to derive bytes for initBytes based on yaxaKey*/
+	EVP_PKEY_CTX *pctx;
+	size_t outlen = sizeof(initBytes);
+	pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, NULL);
+	
+	if (EVP_PKEY_derive_init(pctx) <= 0) {
+		printError("HKDF failed\n");
+		ERR_print_errors_fp(stderr);
+		exit(EXIT_FAILURE);
+	}
+	if (EVP_PKEY_CTX_set_hkdf_md(pctx, EVP_sha512()) <= 0) {
+		printError("HKDF failed\n");
+		ERR_print_errors_fp(stderr);
+		exit(EXIT_FAILURE);
+	}
+	if (EVP_PKEY_CTX_set1_hkdf_key(pctx, yaxaKey, YAXA_KEY_LENGTH) <= 0) {
+		printError("HKDF failed\n");
+		ERR_print_errors_fp(stderr);
+		exit(EXIT_FAILURE);
+	}
+	if (EVP_PKEY_derive(pctx, initBytes, &outlen) <= 0) {
+		printError("HKDF failed\n");
+		ERR_print_errors_fp(stderr);
+		exit(EXIT_FAILURE);
+	}
+	
+	EVP_PKEY_CTX_free(pctx);
+		
+	//The following construction uses the quotient of the first byte of initBytes and the size of counter.counterInt
+	//to determine how many bytes of initBytes to fill into counter.counterInt. This way counter.counterInt will be
+	//intialized to a number within a wider range of 2^128. If all bytes of initBytes were assigned to the full
+	//counter.counterBytes array then the counter.counterInt bitspace would be mostly full and never produce numbers
+	//from the lower range of 2^128. The loop must make 16 iterations every time, and use the ternary condition to
+	//assing bytes from initBytes or zero to counter.counterBytes[i]; in this way the loop and assignments will be
+	//in constant time.
+
+	for (uint8_t i = 0; i < sizeof(counter.counterInt); i++) {
+        counter.counterBytes[i] = initBytes[0] / sizeof(counter.counterInt) >= i ? initBytes[i] : 0;
+    }
 }
 
 void genYaxaSalt()
