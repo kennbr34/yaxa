@@ -108,7 +108,6 @@ void genHMACKey();                                                       /*Gener
 void genPassTag();                                                       /*Generate passKeyedHash*/
 void genYaxaSalt();                                                      /*Generates YAXA salt*/
 void genYaxaKey();                                                       /*YAXA key deriving function*/
-void genCtrStart();														 /*Derive starting point for Ctr from key*/
 unsigned __int128 getFileSize(const char *filename);                     /*Returns filesize using stat()*/
 void signalHandler(int signum);                                          /*Signal handler for Ctrl+C*/
 unsigned __int128 yaxa(unsigned __int128 messageInt);                    /*YAXA encryption/decryption function*/
@@ -296,9 +295,6 @@ int workThread()
         *overallProgressFraction = .2;
         genYaxaKey();
         
-        strcpy(statusMessage,"Generating counter start...");
-        genCtrStart();
-        
         strcpy(statusMessage,"Generation auth key...");
         *overallProgressFraction = .3;
         genHMACKey();
@@ -394,9 +390,6 @@ int workThread()
         strcpy(statusMessage,"Generating decryption key...");
         *overallProgressFraction = .3;
         genYaxaKey();
-        
-        strcpy(statusMessage,"Generating counter start...");
-        genCtrStart();
         
         strcpy(statusMessage,"Generating auth key...");
         *overallProgressFraction = .4;
@@ -757,52 +750,6 @@ void genYaxaKey()
 
     OPENSSL_cleanse(yaxaKeyArray, YAXA_KEYBUF_SIZE);
     OPENSSL_cleanse(yaxaKeyChunk, YAXA_KEY_CHUNK_SIZE);
-}
-
-void genCtrStart()
-{	
-	/*Use these bytes to initialize counter.counterInt*/
-	uint8_t initBytes[sizeof(counter.counterInt)];
-	
-	/*Use HKDF to derive bytes for initBytes based on yaxaKey*/
-	EVP_PKEY_CTX *pctx;
-	size_t outlen = sizeof(initBytes);
-	pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, NULL);
-	
-	if (EVP_PKEY_derive_init(pctx) <= 0) {
-		printError("HKDF failed\n");
-		ERR_print_errors_fp(stderr);
-		exit(EXIT_FAILURE);
-	}
-	if (EVP_PKEY_CTX_set_hkdf_md(pctx, EVP_sha512()) <= 0) {
-		printError("HKDF failed\n");
-		ERR_print_errors_fp(stderr);
-		exit(EXIT_FAILURE);
-	}
-	if (EVP_PKEY_CTX_set1_hkdf_key(pctx, yaxaKey, YAXA_KEY_LENGTH) <= 0) {
-		printError("HKDF failed\n");
-		ERR_print_errors_fp(stderr);
-		exit(EXIT_FAILURE);
-	}
-	if (EVP_PKEY_derive(pctx, initBytes, &outlen) <= 0) {
-		printError("HKDF failed\n");
-		ERR_print_errors_fp(stderr);
-		exit(EXIT_FAILURE);
-	}
-	
-	EVP_PKEY_CTX_free(pctx);
-		
-	//The following construction uses the quotient of the first byte of initBytes and the size of counter.counterInt
-	//to determine how many bytes of initBytes to fill into counter.counterInt. This way counter.counterInt will be
-	//intialized to a number within a wider range of 2^128. If all bytes of initBytes were assigned to the full
-	//counter.counterBytes array then the counter.counterInt bitspace would be mostly full and never produce numbers
-	//from the lower range of 2^128. The loop must make 16 iterations every time, and use the ternary condition to
-	//assing bytes from initBytes or zero to counter.counterBytes[i]; in this way the loop and assignments will be
-	//in constant time.
-
-	for (uint8_t i = 0; i < sizeof(counter.counterInt); i++) {
-        counter.counterBytes[i] = initBytes[0] / sizeof(counter.counterInt) >= i ? initBytes[i] : 0;
-    }
 }
 
 void genYaxaSalt()
