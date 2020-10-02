@@ -164,6 +164,8 @@ int main(int argc, char *argv[])
 
         genYaxaKey();
         
+        genCtrStart();
+        
         genHMACKey();
         
         genPassTag();
@@ -229,6 +231,8 @@ int main(int argc, char *argv[])
         }
 
         genYaxaKey();
+        
+        genCtrStart();
         
         genHMACKey();
         
