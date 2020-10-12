@@ -52,6 +52,24 @@ The "Simple XOR" method is often touted in naieve tutorials as being the same as
 
 I modified my algorithm a little bit to omit the nonce value because I'm using a salt with scrypt to generate a distinct key derived from a password, so the salt will effectively replace the nonce and make it redundant. In addition to this, I'm using a massive 512 kilobyte salt, so it is extremely unlikely to encounter any salt-reuse.  This massive salt is used to generate an even more massive 32 megabyte key. Finally, all values of **C**, **P**, **K** and **Ctr** are 128-bit which means it actually operates on blocks of data rather than single-bytes like a traditional stream cipher.
 
+I also modified the way the counter behaves.  Instead of starting at '0' it is initialized to a random value based on the key derived, as well instead of being simply incremented, it is multiplied by the key value before it is XOR'd against everything else.  This is done because if **Ctr** is started from a predictable position, and predictably incremented, then it is essentialy nullfied because an attacker would know the value of it along any point in the data stream.  In this instance, the cipher looks more like:
+
+*Encryption*
+
+*C₁ = (Ctr₁ * K₁) ⊕ K₁ ⊕ P₁*
+
+*C₂ = (Ctr₂ * K₂) ⊕ K₂ ⊕ P₂*
+
+*...*
+
+*Decryption*
+
+*P₁ = (Ctr₁ * K₁) ⊕ K₁ ⊕ C₁*
+
+*P₂ = (Ctr₂ * K₂) ⊕ K₂ ⊕ C₂*
+
+*...*
+
 The massive 32 megabyte key size was chosen after testing the keystream generated with frequency analysis and dieharder statistical testing to ensure it was indistinguishable from pseudo-randomness.  The 128-bit width of the counter variable ensures that the counter will never wrap-around back to 0 until it reaches 2^128 iterations, with each iteration encrypting 128-bits of data.  With the 32 megabyte key, the keystream has an equal distribution of ~0.39% per value, of a possible value range of 1-256 per byte.  Beyond that, it also passes all 'dieharder' statistical tests. All together this  means the algorithm can generate a pseudo-one-time-pad keystream for a practically-inexhaustable amount of data (1.759218604×10¹³ yobibytes exactly).  I also included a frequency analysis tool and a period-search tool that I used to confirm these qualities of the keystream.
 
 Because this algorithm is malleable, meaning a change in a value in the cipher-text would result in a directly correlated change in the plain-text result, I decided to make the file-encryption program use it in an AEAD ( Authenticated Encryption with Associated Data) setup. Using Encrypt-then-MAC composition with HMAC-SHA512, and also a keyed hash of the password used, no decryption is performed if the wrong password was entered, or if the cipher-text and associated data (in this case the salt and password hash) does not pass verification.  This mitigates against chosen-ciphertext and oracle attacks.
