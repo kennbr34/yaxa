@@ -761,12 +761,9 @@ void genYaxaKey()
 
 void genCtrStart()
 {	
-	/*Use these bytes to initialize counter.counterInt*/
-	uint8_t initBytes[sizeof(counter.counterInt)];
-	
-	/*Use HKDF to derive bytes for initBytes based on yaxaKey*/
+	/*Use HKDF to derive bytes for counter.counterBytes based on yaxaKey*/
 	EVP_PKEY_CTX *pctx;
-	size_t outlen = sizeof(initBytes);
+	size_t outlen = sizeof(counter.counterInt);
 	pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, NULL);
 	
 	if (EVP_PKEY_derive_init(pctx) <= 0) {
@@ -784,25 +781,13 @@ void genCtrStart()
 		ERR_print_errors_fp(stderr);
 		exit(EXIT_FAILURE);
 	}
-	if (EVP_PKEY_derive(pctx, initBytes, &outlen) <= 0) {
+	if (EVP_PKEY_derive(pctx, counter.counterBytes, &outlen) <= 0) {
 		printError("HKDF failed\n");
 		ERR_print_errors_fp(stderr);
 		exit(EXIT_FAILURE);
 	}
 	
 	EVP_PKEY_CTX_free(pctx);
-		
-	//The following construction uses the quotient of the first byte of initBytes and the size of counter.counterInt
-	//to determine how many bytes of initBytes to fill into counter.counterInt. This way counter.counterInt will be
-	//intialized to a number within a wider range of 2^128. If all bytes of initBytes were assigned to the full
-	//counter.counterBytes array then the counter.counterInt bitspace would be mostly full and never produce numbers
-	//from the lower range of 2^128. The loop must make 16 iterations every time, and use the ternary condition to
-	//assing bytes from initBytes or zero to counter.counterBytes[i]; in this way the loop and assignments will be
-	//in constant time.
-
-	for (uint8_t i = 0; i < sizeof(counter.counterInt); i++) {
-        counter.counterBytes[i] = initBytes[0] / sizeof(counter.counterInt) >= i ? initBytes[i] : 0;
-    }
 }
 
 void genYaxaSalt()
