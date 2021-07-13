@@ -59,19 +59,13 @@
 
 struct termios termisOld, termiosNew;
 
-union counterUnion {
-    unsigned __int128 counterInt;
-    uint8_t counterBytes[16];
-};
 
-union counterUnion counter;
+unsigned __int128 counterInt;
+uint8_t counterBytes[16];
 
-union keyUnion {
-    unsigned __int128 keyInt;
-    uint8_t keyBytes[16];
-};
 
-union keyUnion key;
+unsigned __int128 keyInt;
+uint8_t keyBytes[16];
 
 unsigned char yaxaKeyArray[YAXA_SALT_SIZE][YAXA_KEY_CHUNK_SIZE];
 unsigned char *yaxaKeyChunk = NULL;
@@ -143,8 +137,8 @@ int main(int argc, char *argv[])
 
     unsigned __int128 fileSize;
     
-    counter.counterInt = 0;
-    key.keyInt = 0;
+    counterInt = 0;
+    keyInt = 0;
 
     if (strcmp(argv[1], "-e") == 0) {
 
@@ -551,9 +545,9 @@ void genYaxaKey()
 
 void genCtrStart()
 {	
-	/*Use HKDF to derive bytes for counter.counterBytes based on yaxaKey*/
+	/*Use HKDF to derive bytes for counterBytes based on yaxaKey*/
 	EVP_PKEY_CTX *pctx;
-	size_t outlen = sizeof(counter.counterInt);
+	size_t outlen = sizeof(counterInt);
 	pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, NULL);
 	
 	if (EVP_PKEY_derive_init(pctx) <= 0) {
@@ -571,12 +565,14 @@ void genCtrStart()
 		ERR_print_errors_fp(stderr);
 		exit(EXIT_FAILURE);
 	}
-	if (EVP_PKEY_derive(pctx, counter.counterBytes, &outlen) <= 0) {
+	if (EVP_PKEY_derive(pctx, counterBytes, &outlen) <= 0) {
 		printError("HKDF failed\n");
 		ERR_print_errors_fp(stderr);
 		exit(EXIT_FAILURE);
 	}
 	
+    memcpy(&counterInt,counterBytes,outlen);
+    
 	EVP_PKEY_CTX_free(pctx);
 }
 
@@ -675,14 +671,16 @@ unsigned __int128 yaxa(unsigned __int128 messageInt)
 {
     /*Fill up 128-bit key integer with 16 8-bit bytes from yaxaKey*/
     for (uint8_t i = 0; i < sizeof(unsigned __int128); i++)
-        key.keyBytes[i] = yaxaKey[k++];
+        keyBytes[i] = yaxaKey[k++];
+        
+    memcpy(&keyInt,keyBytes,sizeof(unsigned __int128));
 
     /*Reset to the start of the key if reached the end*/
     if (k + 1 >= YAXA_KEY_LENGTH)
         k = 0;
-
+        
     /*Ctr ^ K ^ M*/
     /*All values are 128-bit*/
     
-    return (counter.counterInt *= key.keyInt) ^ key.keyInt ^ messageInt;
+    return (counterInt *= keyInt) ^ keyInt ^ messageInt;
 }
