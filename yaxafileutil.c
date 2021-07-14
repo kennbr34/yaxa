@@ -331,29 +331,35 @@ void cleanUpBuffers()
 
 void doCrypt(FILE *inFile, FILE *outFile, unsigned __int128 fileSize)
 {
+    unsigned int bufferSize = 1024*1024;
+    unsigned char *inBuffer = malloc(bufferSize * sizeof(uint8_t)), *outBuffer = malloc(bufferSize * sizeof(uint8_t));
+    unsigned __int128 remainingBytes = fileSize;
     unsigned __int128 outInt, inInt;
 
-    for (unsigned __int128 i = 0; i < (fileSize); i += sizeof(unsigned __int128)) {
+    for (unsigned __int128 i = 0; remainingBytes; i += bufferSize) {
+        
+        if(bufferSize > remainingBytes) {
+            bufferSize = remainingBytes;
+        }
 
-        if (freadWErrCheck(&inInt, sizeof(unsigned __int128), 1, inFile) != 0) {
+        if (freadWErrCheck(inBuffer, sizeof(uint8_t) * bufferSize, 1, inFile) != 0) {
             printSysError(returnVal);
+            printError("Could not read file for encryption/decryption");
             exit(EXIT_FAILURE);
         }
 
-        outInt = yaxa(inInt);
-
-        /*Write remainder of fileSize % sizeof(unsigned __int128) on the laster iteration if fileSize isn't a multiple of unsigned __int128*/
-        if ((i + sizeof(unsigned __int128)) > fileSize) {
-            if (fwriteWErrCheck(&outInt, sizeof(uint8_t), fileSize % sizeof(unsigned __int128), outFile) != 0) {
-                printSysError(returnVal);
-                exit(EXIT_FAILURE);
-            }
-        } else {
-            if (fwriteWErrCheck(&outInt, sizeof(unsigned __int128), 1, outFile) != 0) {
-                printSysError(returnVal);
-                exit(EXIT_FAILURE);
-            }
+        for(unsigned int j = 0; j < bufferSize; j += sizeof(unsigned __int128)) {
+            memcpy(&inInt,inBuffer + j,sizeof(inInt));
+            outInt = yaxa(inInt);
+            memcpy(outBuffer + j,&outInt,sizeof(outInt));
         }
+
+        if (fwriteWErrCheck(outBuffer, sizeof(uint8_t) * bufferSize, 1, outFile) != 0) {
+            printSysError(returnVal);
+            printError("Could not write file for encryption/decryption");
+            exit(EXIT_FAILURE);
+        }
+        remainingBytes -= bufferSize;
     }
 }
 
@@ -389,6 +395,9 @@ int fwriteWErrCheck(void *ptr, size_t size, size_t nmemb, FILE *stream)
 
 void genHMAC(FILE *dataFile, unsigned __int128 fileSize)
 {
+    unsigned int bufferSize = 1024*1024;
+    unsigned char *buffer = malloc(bufferSize * sizeof(uint8_t));
+    unsigned __int128 remainingBytes = fileSize;
     unsigned char inByte;
 
     /*Initiate HMAC*/
@@ -397,12 +406,20 @@ void genHMAC(FILE *dataFile, unsigned __int128 fileSize)
 
     /*HMAC the cipher-text, passtag and salt*/
     unsigned __int128 i; /*Declare i outside of for loop so it can be used in HMAC_Final as the size*/
-    for (i = 0; i < fileSize; i++) {
-        if (freadWErrCheck(&inByte, sizeof(unsigned char), 1, dataFile) != 0) {
+    for (i = 0; remainingBytes; i += bufferSize) {
+        
+        if(bufferSize > remainingBytes) {
+            bufferSize = remainingBytes;
+        }
+        
+        if (freadWErrCheck(buffer, sizeof(uint8_t) * bufferSize, 1, dataFile) != 0) {
             printSysError(returnVal);
+            printError("Could not generate HMAC");
             exit(EXIT_FAILURE);
         }
-        HMAC_Update(ctx, (unsigned char *)&inByte, sizeof(unsigned char));
+        HMAC_Update(ctx, buffer, sizeof(uint8_t) * bufferSize);
+        
+        remainingBytes -= bufferSize;
     }
     HMAC_Final(ctx, generatedMAC, (unsigned int *)&i);
     HMAC_CTX_free(ctx);
