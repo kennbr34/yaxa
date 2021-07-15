@@ -173,7 +173,7 @@ int workThread()
         exit(EXIT_FAILURE);
     }
 
-    unsigned __int128 fileSize;
+    cryptint_t fileSize;
     
     counterInt = 0;
     keyInt = 0;

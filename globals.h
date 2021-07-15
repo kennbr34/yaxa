@@ -1,10 +1,10 @@
 struct termios termisOld, termiosNew;
 
-unsigned __int128 counterInt;
+cryptint_t counterInt;
 uint8_t counterBytes[16];
 
 
-unsigned __int128 keyInt;
+cryptint_t keyInt;
 uint8_t keyBytes[16];
 
 unsigned char yaxaKeyArray[YAXA_SALT_SIZE][YAXA_KEY_CHUNK_SIZE];

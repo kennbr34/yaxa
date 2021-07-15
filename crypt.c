@@ -1,4 +1,4 @@
-void doCrypt(FILE *inFile, FILE *outFile, unsigned __int128 fileSize)
+void doCrypt(FILE *inFile, FILE *outFile, cryptint_t fileSize)
 {
     
     #ifdef gui
@@ -7,10 +7,10 @@ void doCrypt(FILE *inFile, FILE *outFile, unsigned __int128 fileSize)
     
     unsigned int bufferSize = 1024*1024;
     unsigned char *inBuffer = malloc(bufferSize * sizeof(uint8_t)), *outBuffer = malloc(bufferSize * sizeof(uint8_t));
-    unsigned __int128 remainingBytes = fileSize;
-    unsigned __int128 outInt, inInt;
+    cryptint_t remainingBytes = fileSize;
+    cryptint_t outInt, inInt;
 
-    for (unsigned __int128 i = 0; remainingBytes; i += bufferSize) {
+    for (cryptint_t i = 0; remainingBytes; i += bufferSize) {
         
         if(bufferSize > remainingBytes) {
             bufferSize = remainingBytes;
@@ -22,7 +22,7 @@ void doCrypt(FILE *inFile, FILE *outFile, unsigned __int128 fileSize)
             exit(EXIT_FAILURE);
         }
 
-        for(unsigned int j = 0; j < bufferSize; j += sizeof(unsigned __int128)) {
+        for(unsigned int j = 0; j < bufferSize; j += sizeof(cryptint_t)) {
             memcpy(&inInt,inBuffer + j,sizeof(inInt));
             outInt = yaxa(inInt);
             memcpy(outBuffer + j,&outInt,sizeof(outInt));
@@ -43,7 +43,7 @@ void doCrypt(FILE *inFile, FILE *outFile, unsigned __int128 fileSize)
     free(outBuffer);
 }
 
-void genHMAC(FILE *dataFile, unsigned __int128 fileSize)
+void genHMAC(FILE *dataFile, cryptint_t fileSize)
 {
     #ifdef gui
     *progressFraction = 0.0;
@@ -51,7 +51,7 @@ void genHMAC(FILE *dataFile, unsigned __int128 fileSize)
     
     unsigned int bufferSize = 1024*1024;
     unsigned char *buffer = malloc(bufferSize * sizeof(uint8_t));
-    unsigned __int128 remainingBytes = fileSize;
+    cryptint_t remainingBytes = fileSize;
     unsigned char inByte;
 
     /*Initiate HMAC*/
@@ -59,7 +59,7 @@ void genHMAC(FILE *dataFile, unsigned __int128 fileSize)
     HMAC_Init_ex(ctx, hmacKey, HMAC_KEY_SIZE, EVP_sha512(), NULL);
 
     /*HMAC the cipher-text, passtag and salt*/
-    unsigned __int128 i; /*Declare i outside of for loop so it can be used in HMAC_Final as the size*/
+    cryptint_t i; /*Declare i outside of for loop so it can be used in HMAC_Final as the size*/
     for (i = 0; remainingBytes; i += bufferSize) {
         
         if(bufferSize > remainingBytes) {
@@ -300,13 +300,13 @@ void genYaxaSalt()
     }
 }
 
-unsigned __int128 yaxa(unsigned __int128 messageInt)
+cryptint_t yaxa(cryptint_t messageInt)
 {
     /*Fill up 128-bit key integer with 16 8-bit bytes from yaxaKey*/
-    for (uint8_t i = 0; i < sizeof(unsigned __int128); i++)
+    for (uint8_t i = 0; i < sizeof(cryptint_t); i++)
         keyBytes[i] = yaxaKey[k++];
         
-    memcpy(&keyInt,keyBytes,sizeof(unsigned __int128));
+    memcpy(&keyInt,keyBytes,sizeof(cryptint_t));
 
     /*Reset to the start of the key if reached the end*/
     if (k + 1 >= YAXA_KEY_LENGTH)

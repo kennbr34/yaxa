@@ -18,6 +18,9 @@
 #endif
 #include <sys/mman.h>
 
+/*Define the size of the integer to be used in XOR operations*/
+typedef unsigned __int128 cryptint_t;
+
 /*Do NOT change the order of these*/
 
 /*Macro defintions*/

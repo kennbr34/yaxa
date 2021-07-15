@@ -43,7 +43,7 @@ int fwriteWErrCheck(void *ptr, size_t size, size_t nmemb, FILE *stream)
     return 0;
 }
 
-unsigned __int128 getFileSize(const char *filename)
+cryptint_t getFileSize(const char *filename)
 {
     struct stat st;
     stat(filename, &st);
