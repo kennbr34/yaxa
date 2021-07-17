@@ -258,7 +258,7 @@ void genCtrStart()
 		ERR_print_errors_fp(stderr);
 		exit(EXIT_FAILURE);
 	}
-	if (EVP_PKEY_CTX_set1_hkdf_key(pctx, yaxaKey, sizeof(*yaxaKey) * YAXA_KEY_LENGTH) <= 0) {
+	if (EVP_PKEY_CTX_set1_hkdf_key(pctx, yaxaKey, sizeof(*yaxaKey) * YAXA_KEYBUF_SIZE) <= 0) {
 		printError("HKDF failed\n");
 		ERR_print_errors_fp(stderr);
 		exit(EXIT_FAILURE);
@@ -305,7 +305,7 @@ cryptint_t yaxa(cryptint_t messageInt)
     memcpy(&keyInt,keyBytes,sizeof(keyInt));
 
     /*Reset to the start of the key if reached the end*/
-    if (k + 1 >= YAXA_KEY_LENGTH)
+    if (k + 1 >= YAXA_KEYBUF_SIZE)
         k = 0;
         
     /*Ctr ^ K ^ M*/

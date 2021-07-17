@@ -7,23 +7,23 @@ uint8_t counterBytes[16];
 cryptint_t keyInt;
 uint8_t keyBytes[16];
 
-unsigned char *yaxaKeyChunk = NULL;
-unsigned char *yaxaKey = NULL;
-unsigned char *yaxaSalt = NULL;
+uint8_t *yaxaKeyChunk = NULL;
+uint8_t *yaxaKey = NULL;
+uint8_t *yaxaSalt = NULL;
 
 char *userPass = NULL;
-unsigned char passKeyedHash[PASS_KEYED_HASH_SIZE], passKeyedHashFromFile[PASS_KEYED_HASH_SIZE];
+uint8_t passKeyedHash[PASS_KEYED_HASH_SIZE], passKeyedHashFromFile[PASS_KEYED_HASH_SIZE];
 
-unsigned char generatedMAC[MAC_SIZE];
-unsigned char fileMAC[MAC_SIZE];
-unsigned char *hmacKey = NULL;
-unsigned int *HMACLengthPtr = NULL;
+uint8_t generatedMAC[MAC_SIZE];
+uint8_t fileMAC[MAC_SIZE];
+uint8_t *hmacKey = NULL;
+uint32_t *HMACLengthPtr = NULL;
 
 /*Iterator for indexing yaxaKey array*/
-int k = 0;
+uint32_t k = 0;
 
-int returnVal;
-int gotPassFromCmdLine = false;
+uint64_t returnVal;
+bool gotPassFromCmdLine = false;
 
 double *progressFraction;
 char *statusMessage;
