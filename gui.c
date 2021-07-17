@@ -241,7 +241,7 @@ int workThread()
         
         genHMAC(outFile, fileSize);
 
-        OPENSSL_cleanse(hmacKey, HMAC_KEY_SIZE);
+        OPENSSL_cleanse(hmacKey, sizeof(*hmacKey) * HMAC_KEY_SIZE);
 
         /*Write the MAC to the end of the file*/
         if (fwriteWErrCheck(generatedMAC, sizeof(*generatedMAC), MAC_SIZE, outFile) != 0) {
@@ -301,7 +301,7 @@ int workThread()
 
         strcpy(statusMessage,"Verifying password...");
         *overallProgressFraction = .6;
-        if (CRYPTO_memcmp(passKeyedHash, passKeyedHashFromFile, PASS_KEYED_HASH_SIZE) != 0) {
+        if (CRYPTO_memcmp(passKeyedHash, passKeyedHashFromFile, sizeof(*passKeyedHash) * PASS_KEYED_HASH_SIZE) != 0) {
             printf("Wrong password\n");
             strcpy(statusMessage,"Wrong password");
             exit(EXIT_FAILURE);
@@ -327,13 +327,13 @@ int workThread()
         genHMAC(inFile, (fileSize + (YAXA_SALT_SIZE + PASS_KEYED_HASH_SIZE)) - MAC_SIZE);
 
         /*Verify MAC*/
-        if (CRYPTO_memcmp(fileMAC, generatedMAC, MAC_SIZE) != 0) {
+        if (CRYPTO_memcmp(fileMAC, generatedMAC, sizeof(*generatedMAC) * MAC_SIZE) != 0) {
             printf("Message authentication failed\n");
             strcpy(statusMessage,"Authentication failure");
             exit(EXIT_FAILURE);
         }
 
-        OPENSSL_cleanse(hmacKey, HMAC_KEY_SIZE);
+        OPENSSL_cleanse(hmacKey, sizeof(*hmacKey) * HMAC_KEY_SIZE);
 
         /*Reset file posiiton to beginning of cipher-text after the salt and pass tag*/
         fseek(inFile, YAXA_SALT_SIZE + PASS_KEYED_HASH_SIZE, SEEK_SET);

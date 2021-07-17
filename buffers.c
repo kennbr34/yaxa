@@ -7,7 +7,7 @@ void allocateBuffers()
         exit(EXIT_FAILURE);
     }
 
-    userPass = calloc(YAXA_KEY_LENGTH, sizeof(*userPass));
+    userPass = calloc(MAX_PASS_SIZE, sizeof(*userPass));
     if (userPass == NULL) {
         printSysError(errno);
         printError("Could not allocate userPass buffer");

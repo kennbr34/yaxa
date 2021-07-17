@@ -70,13 +70,13 @@ int main(int argc, char *argv[])
         fileSize = getFileSize(argv[2]);
 
         /*Prepend salt to head of file*/
-        if (fwriteWErrCheck(yaxaSalt, sizeof(unsigned char), YAXA_SALT_SIZE, outFile) != 0) {
+        if (fwriteWErrCheck(yaxaSalt, sizeof(*yaxaSalt), YAXA_SALT_SIZE, outFile) != 0) {
             printSysError(returnVal);
             exit(EXIT_FAILURE);
         }
 
         /*Write passKeyedHash to head of file next to salt*/
-        if (fwriteWErrCheck(passKeyedHash, sizeof(unsigned char), PASS_KEYED_HASH_SIZE, outFile) != 0) {
+        if (fwriteWErrCheck(passKeyedHash, sizeof(*passKeyedHash), PASS_KEYED_HASH_SIZE, outFile) != 0) {
             printSysError(returnVal);
             exit(EXIT_FAILURE);
         }
@@ -98,7 +98,7 @@ int main(int argc, char *argv[])
         OPENSSL_cleanse(hmacKey, HMAC_KEY_SIZE);
 
         /*Write the MAC to the end of the file*/
-        if (fwriteWErrCheck(generatedMAC, sizeof(unsigned char), MAC_SIZE, outFile) != 0) {
+        if (fwriteWErrCheck(generatedMAC, sizeof(*generatedMAC), MAC_SIZE, outFile) != 0) {
             printSysError(returnVal);
             exit(EXIT_FAILURE);
         }
@@ -116,13 +116,13 @@ int main(int argc, char *argv[])
             snprintf(userPass, MAX_PASS_SIZE, "%s", argv[4]);
 
         /*Read yaxaSalt from head of cipher-text*/
-        if (freadWErrCheck(yaxaSalt, sizeof(unsigned char), YAXA_SALT_SIZE, inFile) != 0) {
+        if (freadWErrCheck(yaxaSalt, sizeof(*yaxaSalt), YAXA_SALT_SIZE, inFile) != 0) {
             printSysError(returnVal);
             exit(EXIT_FAILURE);
         }
 
         /*Get passKeyedHashFromFile*/
-        if (freadWErrCheck(passKeyedHashFromFile, sizeof(unsigned char), PASS_KEYED_HASH_SIZE, inFile) != 0) {
+        if (freadWErrCheck(passKeyedHashFromFile, sizeof(*passKeyedHashFromFile), PASS_KEYED_HASH_SIZE, inFile) != 0) {
             printSysError(returnVal);
             exit(EXIT_FAILURE);
         }
@@ -135,7 +135,7 @@ int main(int argc, char *argv[])
         
         genPassTag();
 
-        if (CRYPTO_memcmp(passKeyedHash, passKeyedHashFromFile, PASS_KEYED_HASH_SIZE) != 0) {
+        if (CRYPTO_memcmp(passKeyedHash, passKeyedHashFromFile, sizeof(*passKeyedHashFromFile) * PASS_KEYED_HASH_SIZE) != 0) {
             printf("Wrong password\n");
             exit(EXIT_FAILURE);
         }
@@ -146,7 +146,7 @@ int main(int argc, char *argv[])
         /*Move file position to the start of the MAC*/
         fseek(inFile, (fileSize + YAXA_SALT_SIZE + PASS_KEYED_HASH_SIZE) - MAC_SIZE, SEEK_SET);
 
-        if (freadWErrCheck(fileMAC, sizeof(unsigned char), MAC_SIZE, inFile) != 0) {
+        if (freadWErrCheck(fileMAC, sizeof(*fileMAC), MAC_SIZE, inFile) != 0) {
             printSysError(returnVal);
             exit(EXIT_FAILURE);
         }
@@ -157,12 +157,12 @@ int main(int argc, char *argv[])
         genHMAC(inFile, (fileSize + (YAXA_SALT_SIZE + PASS_KEYED_HASH_SIZE)) - MAC_SIZE);
 
         /*Verify MAC*/
-        if (CRYPTO_memcmp(fileMAC, generatedMAC, MAC_SIZE) != 0) {
+        if (CRYPTO_memcmp(fileMAC, generatedMAC, sizeof(*generatedMAC) * MAC_SIZE) != 0) {
             printf("Message authentication failed\n");
             exit(EXIT_FAILURE);
         }
 
-        OPENSSL_cleanse(hmacKey, HMAC_KEY_SIZE);
+        OPENSSL_cleanse(hmacKey, sizeof(*hmacKey) * HMAC_KEY_SIZE);
 
         /*Reset file posiiton to beginning of cipher-text after the salt and pass tag*/
         fseek(inFile, YAXA_SALT_SIZE + PASS_KEYED_HASH_SIZE, SEEK_SET);
