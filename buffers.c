@@ -47,7 +47,5 @@ void cleanUpBuffers()
     OPENSSL_cleanse(userPass, strlen(userPass));
     free(userPass);
 
-    OPENSSL_cleanse(yaxaKeyArray, YAXA_KEYBUF_SIZE);
-
     free(yaxaSalt);
 }

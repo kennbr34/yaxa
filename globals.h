@@ -7,7 +7,6 @@ uint8_t counterBytes[16];
 cryptint_t keyInt;
 uint8_t keyBytes[16];
 
-unsigned char yaxaKeyArray[YAXA_SALT_SIZE][YAXA_KEY_CHUNK_SIZE];
 unsigned char *yaxaKeyChunk = NULL;
 unsigned char *yaxaKey = NULL;
 unsigned char *yaxaSalt = NULL;

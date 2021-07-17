@@ -194,7 +194,7 @@ void genYaxaKey()
     EVP_PKEY_CTX_free(pctx);
     
     /*Copy that first 64-byte chunk into the yaxaKeyArray*/
-    memcpy(yaxaKeyArray[0], yaxaKeyChunk, sizeof(*yaxaKeyChunk) * YAXA_KEY_CHUNK_SIZE);
+    memcpy(yaxaKey, yaxaKeyChunk, sizeof(*yaxaKeyChunk) * YAXA_KEY_CHUNK_SIZE);
     
     #ifdef gui
     *progressFraction = keyChunkFloat / keyBufFloat;
@@ -217,7 +217,7 @@ void genYaxaKey()
             ERR_print_errors_fp(stderr);
             exit(EXIT_FAILURE);
         }
-        if (EVP_PKEY_CTX_set1_hkdf_key(pctx, yaxaKeyArray[i - 1], sizeof(*yaxaKeyChunk) * YAXA_KEY_CHUNK_SIZE) <= 0) {
+        if (EVP_PKEY_CTX_set1_hkdf_key(pctx, yaxaKey + ((i * YAXA_KEY_CHUNK_SIZE) - YAXA_KEY_CHUNK_SIZE), sizeof(*yaxaKeyChunk) * YAXA_KEY_CHUNK_SIZE) <= 0) {
             printError("HKDF failed\n");
             ERR_print_errors_fp(stderr);
             exit(EXIT_FAILURE);
@@ -231,16 +231,13 @@ void genYaxaKey()
         EVP_PKEY_CTX_free(pctx);
 
         /*Copy the 64-byte chunk into the yaxaKeyarray*/
-        memcpy(yaxaKeyArray[i], yaxaKeyChunk, sizeof(*yaxaKeyChunk) * YAXA_KEY_CHUNK_SIZE);
+        memcpy(yaxaKey + (i * YAXA_KEY_CHUNK_SIZE), yaxaKeyChunk, sizeof(*yaxaKeyChunk) * YAXA_KEY_CHUNK_SIZE);
         
         #ifdef gui
         *progressFraction = ((double)i * keyChunkFloat) / keyBufFloat;
         #endif
     }
-
-    memcpy(yaxaKey, yaxaKeyArray, sizeof(*yaxaKey) * YAXA_KEYBUF_SIZE);
-
-    OPENSSL_cleanse(yaxaKeyArray, sizeof(yaxaKeyArray[0][0]) * YAXA_KEYBUF_SIZE);
+    
     OPENSSL_cleanse(yaxaKeyChunk, sizeof(*yaxaKeyChunk ) * YAXA_KEY_CHUNK_SIZE);
 }
 
