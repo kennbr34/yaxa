@@ -46,10 +46,11 @@ int main(int argc, char *argv[])
     if (strcmp(argv[1], "-e") == 0) {
 
         if (argc == 4) {
-            userPass = getPass("Enter password to encrypt with: ");
+            getPass("Enter password to encrypt with: ",userPass);
 
             /*Get the password again to verify it wasn't misspelled*/
-            if (strcmp(userPass, getPass("Verify password: ")) != 0) {
+            getPass("Verify password: ",userPassToVerify);
+            if (strcmp(userPass,userPassToVerify) != 0) {
                 printf("\nPasswords do not match.  Nothing done.\n\n");
                 exit(EXIT_FAILURE);
             }
@@ -111,7 +112,7 @@ int main(int argc, char *argv[])
     } else if (strcmp(argv[1], "-d") == 0) {
 
         if (argc == 4)
-            userPass = getPass("Enter password to decrypt with: ");
+            getPass("Enter password to decrypt with: ",userPass);
         else if (argc == 5)
             snprintf(userPass, MAX_PASS_SIZE, "%s", argv[4]);
 
@@ -183,34 +184,52 @@ int main(int argc, char *argv[])
     return EXIT_SUCCESS;
 }
 
-char *getPass(const char *prompt)
+char *getPass(const char *prompt, char *paddedPass)
 {
-    gotPassFromCmdLine = true;
     size_t len = 0;
+    int i = 0;
+    int passLength = 0;
     char *pass = NULL;
+    unsigned char *paddedPassTmp = calloc(sizeof(*paddedPassTmp), MAX_PASS_SIZE);
+    if (paddedPassTmp == NULL) {
+        printSysError(errno);
+        exit(EXIT_FAILURE);
+    }
 
-    size_t nread;
+    if (!RAND_bytes(paddedPassTmp, MAX_PASS_SIZE)) {
+        fprintf(stderr, "Failure: CSPRNG bytes could not be made unpredictable\n");
+        /* Restore terminal. */
+        (void)tcsetattr(fileno(stdin), TCSAFLUSH, &termiosOld);
+        fprintf(stderr, "\nPassword was too large\n");
+        exit(EXIT_FAILURE);
+    }
+    memcpy(paddedPass, paddedPassTmp, sizeof(*paddedPass) * MAX_PASS_SIZE);
+    OPENSSL_cleanse(paddedPassTmp, sizeof(*paddedPassTmp) * MAX_PASS_SIZE);
+    free(paddedPassTmp);
+    paddedPassTmp = NULL;
+
+    int nread = 0;
 
     /* Turn echoing off and fail if we can’t. */
-    if (tcgetattr(fileno(stdin), &termisOld) != 0)
+    if (tcgetattr(fileno(stdin), &termiosOld) != 0)
         exit(EXIT_FAILURE);
-    termiosNew = termisOld;
+    termiosNew = termiosOld;
     termiosNew.c_lflag &= ~ECHO;
     if (tcsetattr(fileno(stdin), TCSAFLUSH, &termiosNew) != 0)
         exit(EXIT_FAILURE);
 
     /* Read the password. */
-    printf("\n%s", prompt);
+    fprintf(stderr, "\n%s", prompt);
     nread = getline(&pass, &len, stdin);
     if (nread == -1)
         exit(EXIT_FAILURE);
-    else if (nread > MAX_PASS_SIZE) {
+    else if (nread > (MAX_PASS_SIZE - 1)) {
         /* Restore terminal. */
-        (void)tcsetattr(fileno(stdin), TCSAFLUSH, &termisOld);
-        for (int i = 0; i < nread; i++)
-            pass[i] = 0;
+        (void)tcsetattr(fileno(stdin), TCSAFLUSH, &termiosOld);
+        OPENSSL_cleanse(pass, sizeof(*pass) * nread);
         free(pass);
-        printf("\nPassword was too large\n");
+        pass = NULL;
+        fprintf(stderr, "\nPassword was too large\n");
         exit(EXIT_FAILURE);
     } else {
         /*Replace newline with null terminator*/
@@ -218,10 +237,20 @@ char *getPass(const char *prompt)
     }
 
     /* Restore terminal. */
-    (void)tcsetattr(fileno(stdin), TCSAFLUSH, &termisOld);
+    (void)tcsetattr(fileno(stdin), TCSAFLUSH, &termiosOld);
 
-    printf("\n");
-    return pass;
+    fprintf(stderr, "\n");
+
+    /*Copy pass into paddedPass then remove sensitive information*/
+    passLength = strlen(pass);
+    for (i = 0; i < passLength + 1; i++)
+        paddedPass[i] = pass[i];
+
+    OPENSSL_cleanse(pass, sizeof(*pass) * nread);
+    free(pass);
+    pass = NULL;
+
+    return paddedPass;
 }
 
 uint8_t printSyntax(char *arg)

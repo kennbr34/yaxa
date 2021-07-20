@@ -4,11 +4,11 @@ void signalHandler(int signum)
 
     /* Restore terminal. */
     if (gotPassFromCmdLine == false) {
-        tcgetattr(fileno(stdin), &termisOld);
-        termiosNew = termisOld;
+        tcgetattr(fileno(stdin), &termiosOld);
+        termiosNew = termiosOld;
         termiosNew.c_lflag &= ~ECHO;
     }
-    (void)tcsetattr(fileno(stdin), TCSAFLUSH, &termisOld);
+    (void)tcsetattr(fileno(stdin), TCSAFLUSH, &termiosOld);
 
     exit(EXIT_FAILURE);
 }

@@ -1,4 +1,4 @@
-struct termios termisOld, termiosNew;
+struct termios termiosOld, termiosNew;
 
 cryptint_t counterInt;
 uint8_t counterBytes[16];
@@ -12,6 +12,7 @@ uint8_t *yaxaKey = NULL;
 uint8_t *yaxaSalt = NULL;
 
 char *userPass = NULL;
+char *userPassToVerify = NULL;
 uint8_t passKeyedHash[PASS_KEYED_HASH_SIZE], passKeyedHashFromFile[PASS_KEYED_HASH_SIZE];
 
 uint8_t generatedMAC[MAC_SIZE];
