@@ -13,7 +13,7 @@ void signalHandler(int signum)
     exit(EXIT_FAILURE);
 }
 
-int freadWErrCheck(void *ptr, size_t size, size_t nmemb, FILE *stream)
+uint64_t freadWErrCheck(void *ptr, size_t size, size_t nmemb, FILE *stream)
 {
     if (fread(ptr, size, nmemb, stream) != nmemb / size) {
         if (feof(stream)) {
@@ -28,7 +28,7 @@ int freadWErrCheck(void *ptr, size_t size, size_t nmemb, FILE *stream)
     return 0;
 }
 
-int fwriteWErrCheck(void *ptr, size_t size, size_t nmemb, FILE *stream)
+uint64_t fwriteWErrCheck(void *ptr, size_t size, size_t nmemb, FILE *stream)
 {
     if (fwrite(ptr, size, nmemb, stream) != nmemb / size) {
         if (feof(stream)) {

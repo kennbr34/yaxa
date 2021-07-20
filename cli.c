@@ -224,7 +224,7 @@ char *getPass(const char *prompt)
     return pass;
 }
 
-int printSyntax(char *arg)
+uint8_t printSyntax(char *arg)
 {
     printf("\
 \nUse: \
