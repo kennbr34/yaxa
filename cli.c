@@ -7,181 +7,27 @@
 #include "misc.c"
 #include "buffers.c"
 
-int main(int argc, char *argv[])
+uint8_t printSyntax(char *arg)
 {
-    if (argc == 1) {
-        printSyntax(argv[0]);
-        exit(EXIT_FAILURE);
-    }
-
-    if (strcmp(argv[1], "-e") != 0 && strcmp(argv[1], "-d") != 0) {
-        printSyntax(argv[0]);
-        exit(EXIT_FAILURE);
-    }
-
-    signal(SIGINT, signalHandler);
-
-    atexit(cleanUpBuffers);
-
-    allocateBuffers();
-
-    OpenSSL_add_all_algorithms();
-
-    FILE *inFile = fopen(argv[2], "rb");
-    if (inFile == NULL) {
-        printFileError(argv[2], errno);
-        exit(EXIT_FAILURE);
-    }
-    FILE *outFile = fopen(argv[3], "wb+");
-    if (outFile == NULL) {
-        printFileError(argv[3], errno);
-        exit(EXIT_FAILURE);
-    }
-
-    cryptint_t fileSize;
-    
-    counterInt = 0;
-    keyInt = 0;
-
-    if (strcmp(argv[1], "-e") == 0) {
-
-        if (argc == 4) {
-            getPass("Enter password to encrypt with: ",userPass);
-
-            /*Get the password again to verify it wasn't misspelled*/
-            getPass("Verify password: ",userPassToVerify);
-            if (strcmp(userPass,userPassToVerify) != 0) {
-                printf("\nPasswords do not match.  Nothing done.\n\n");
-                exit(EXIT_FAILURE);
-            }
-        } else if (argc == 5) {
-            snprintf(userPass, MAX_PASS_SIZE, "%s", argv[4]);
-        }
-
-        genYaxaSalt();
-
-        genYaxaKey();
-        
-        genCtrStart();
-        
-        genHMACKey();
-        
-        genPassTag();
-
-        fileSize = getFileSize(argv[2]);
-
-        /*Prepend salt to head of file*/
-        if (fwriteWErrCheck(yaxaSalt, sizeof(*yaxaSalt), YAXA_SALT_SIZE, outFile) != 0) {
-            printSysError(returnVal);
-            exit(EXIT_FAILURE);
-        }
-
-        /*Write passKeyedHash to head of file next to salt*/
-        if (fwriteWErrCheck(passKeyedHash, sizeof(*passKeyedHash), PASS_KEYED_HASH_SIZE, outFile) != 0) {
-            printSysError(returnVal);
-            exit(EXIT_FAILURE);
-        }
-
-        /*Encrypt file and write it out*/
-        doCrypt(inFile, outFile, fileSize);
-
-        if(fclose(inFile) != 0) {
-            printSysError(errno);
-            exit(EXIT_FAILURE);
-        }
-
-        /*Now get new filesize and reset flie position to beginning*/
-        fileSize = ftell(outFile);
-        rewind(outFile);
-
-        genHMAC(outFile, fileSize);
-
-        OPENSSL_cleanse(hmacKey, HMAC_KEY_SIZE);
-
-        /*Write the MAC to the end of the file*/
-        if (fwriteWErrCheck(generatedMAC, sizeof(*generatedMAC), MAC_SIZE, outFile) != 0) {
-            printSysError(returnVal);
-            exit(EXIT_FAILURE);
-        }
-
-        if(fclose(outFile) != 0) {
-            printSysError(errno);
-            exit(EXIT_FAILURE);
-        }
-
-    } else if (strcmp(argv[1], "-d") == 0) {
-
-        if (argc == 4)
-            getPass("Enter password to decrypt with: ",userPass);
-        else if (argc == 5)
-            snprintf(userPass, MAX_PASS_SIZE, "%s", argv[4]);
-
-        /*Read yaxaSalt from head of cipher-text*/
-        if (freadWErrCheck(yaxaSalt, sizeof(*yaxaSalt), YAXA_SALT_SIZE, inFile) != 0) {
-            printSysError(returnVal);
-            exit(EXIT_FAILURE);
-        }
-
-        /*Get passKeyedHashFromFile*/
-        if (freadWErrCheck(passKeyedHashFromFile, sizeof(*passKeyedHashFromFile), PASS_KEYED_HASH_SIZE, inFile) != 0) {
-            printSysError(returnVal);
-            exit(EXIT_FAILURE);
-        }
-
-        genYaxaKey();
-        
-        genCtrStart();
-        
-        genHMACKey();
-        
-        genPassTag();
-
-        if (CRYPTO_memcmp(passKeyedHash, passKeyedHashFromFile, sizeof(*passKeyedHashFromFile) * PASS_KEYED_HASH_SIZE) != 0) {
-            printf("Wrong password\n");
-            exit(EXIT_FAILURE);
-        }
-
-        /*Get filesize, discounting the salt and passKeyedHash*/
-        fileSize = getFileSize(argv[2]) - (YAXA_SALT_SIZE + PASS_KEYED_HASH_SIZE);
-
-        /*Move file position to the start of the MAC*/
-        fseek(inFile, (fileSize + YAXA_SALT_SIZE + PASS_KEYED_HASH_SIZE) - MAC_SIZE, SEEK_SET);
-
-        if (freadWErrCheck(fileMAC, sizeof(*fileMAC), MAC_SIZE, inFile) != 0) {
-            printSysError(returnVal);
-            exit(EXIT_FAILURE);
-        }
-
-        /*Reset file position to beginning of file*/
-        rewind(inFile);
-
-        genHMAC(inFile, (fileSize + (YAXA_SALT_SIZE + PASS_KEYED_HASH_SIZE)) - MAC_SIZE);
-
-        /*Verify MAC*/
-        if (CRYPTO_memcmp(fileMAC, generatedMAC, sizeof(*generatedMAC) * MAC_SIZE) != 0) {
-            printf("Message authentication failed\n");
-            exit(EXIT_FAILURE);
-        }
-
-        OPENSSL_cleanse(hmacKey, sizeof(*hmacKey) * HMAC_KEY_SIZE);
-
-        /*Reset file posiiton to beginning of cipher-text after the salt and pass tag*/
-        fseek(inFile, YAXA_SALT_SIZE + PASS_KEYED_HASH_SIZE, SEEK_SET);
-
-        /*Now decrypt the cipher-text, disocounting the size of the MAC*/
-        doCrypt(inFile, outFile, fileSize - MAC_SIZE);
-
-        if(fclose(outFile) != 0) {
-            printSysError(errno);
-            exit(EXIT_FAILURE);
-        }
-        if(fclose(inFile) != 0) {
-            printSysError(errno);
-            exit(EXIT_FAILURE);
-        }
-    }
-
-    return EXIT_SUCCESS;
+    printf("\
+\nUse: \
+\n\n%s [-e|-d] -i infile -o outfile [-p pass] [-k keyfile] [-s sizes]\
+\n-e,--encrypt - encrypt infile to outfile\
+\n-d,--decrypt - decrypt infile to outfile\
+\n-i,--input-file - input file\
+\n-o,--output-file - output file\
+\n-p,--password - password to use\
+\n-k,--key-file - keyfile to use\
+\n-s,--sizes - [key_size=],[mac_buffer=],[message_buffer=]\
+\n\t key_size=num[b|k|m]\
+\n\t\t Size of key to generate from password in bytes, kilobytes or megabytes\
+\n\t mac_buffer=num[b|k|m]\
+\n\t\t Size of input buffer to use for generating MAC, in bytes, kilobytes, or megabytes\
+\n\t message_buffer=num[b|k|m]\
+\n\t\t Size of encryption/decryption input/output buffers to use in bytes, kilobytes or megabytes\
+\n", arg);
+    printf("\nThis product includes software developed by the OpenSSL Project for use in the OpenSSL Toolkit. (http://www.openssl.org/)\n");
+    return EXIT_FAILURE;
 }
 
 char *getPass(const char *prompt, char *paddedPass)
@@ -253,16 +99,413 @@ char *getPass(const char *prompt, char *paddedPass)
     return paddedPass;
 }
 
-uint8_t printSyntax(char *arg)
+int getBufSizeMultiple(char *value) { 
+    
+    #define MAX_DIGITS 13
+    char valString[MAX_DIGITS] = {0};
+    /* Compiling without optimization results in extremely slow speeds, but this will be optimized 
+     * out if not set to volatile.
+     */
+    volatile int valueLength = 0;
+    volatile int multiple = 1;
+    
+    /* value from getsubopt is not null-terminated so must copy and get the length manually without
+     * string functions
+     */
+    for(valueLength = 0;valueLength < MAX_DIGITS;valueLength++) {
+        if(isdigit(value[valueLength])) {
+            valString[valueLength] = value[valueLength];
+            continue;
+        }
+        else if(isalpha(value[valueLength])) {
+            valString[valueLength] = value[valueLength];
+            valueLength++;
+            break;
+        }
+    }
+    
+    if(valString[valueLength-1] == 'b' || valString[valueLength-1] == 'B')
+        multiple = 1;
+    if(valString[valueLength-1] == 'k' || valString[valueLength-1] == 'K')
+        multiple = 1024;
+    if(valString[valueLength-1] == 'm' || valString[valueLength-1] == 'M')
+        multiple = 1024*1024;
+        
+    return multiple;
+}
+
+void parseOptions(
+int argc,
+char *argv[],
+struct optionsStruct *optSt
+) {
+    int c;
+    int errflg = 0;
+    char binName[NAME_MAX];
+    snprintf(binName,NAME_MAX,"%s",argv[0]);
+
+    /*Process through arguments*/
+    while (1) {
+        int option_index = 0;
+        static struct option long_options[] = {
+            {"encrypt",        no_argument,       0,'e' },
+            {"decrypt",        no_argument,       0,'d' },
+            {"input-file",     required_argument, 0,'i' },
+            {"output-file",    required_argument, 0,'o' },
+            {"key-file",       required_argument, 0,'k' },
+            {"password",       required_argument, 0,'p' },
+            {"sizes",          required_argument, 0,'s' },
+            {0,                0,                 0, 0  }
+        };
+        
+        c = getopt_long(argc, argv, "edi:o:k:p:s:",
+                        long_options, &option_index);
+       if (c == -1)
+           break;
+
+        switch (c) {
+        
+        case 'e':
+            optSt->encrypt = true;
+        break;
+        case 'd':
+            optSt->decrypt = true;
+        break;
+        case 'i':
+            if (optarg[0] == '-' && strlen(optarg) == 2) {
+                fprintf(stderr, "Option -i requires an argument\n");
+                errflg++;
+                break;
+            } else {
+                optSt->inputFileGiven = true;
+                snprintf(inputFileName, NAME_MAX, "%s", optarg);
+            }
+        break;
+        case 'o':
+            if (optarg[0] == '-' && strlen(optarg) == 2) {
+                fprintf(stderr, "Option -o requires an argument\n");
+                errflg++;
+                break;
+            } else {
+                optSt->outputFileGiven = true;
+                snprintf(outputFileName, NAME_MAX, "%s", optarg);
+            }
+        break;
+        case 'k':
+            if (optarg[0] == '-' && strlen(optarg) == 2) {
+                fprintf(stderr, "Option -k requires an argument\n");
+                errflg++;
+                break;
+            } else {
+                optSt->keyFileGiven = true;
+                snprintf(keyFileName, NAME_MAX, "%s", optarg);
+                keyBufSize = getFileSize(keyFileName);
+                yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
+            }
+        break;
+        case 'p':
+            if (optarg[0] == '-' && strlen(optarg) == 2) {
+                fprintf(stderr, "Option -p requires an argument\n");
+                errflg++;
+                break;
+            } else {
+                optSt->passWordGiven = true;
+                snprintf(userPass, MAX_PASS_SIZE, "%s", optarg);
+            }
+        break;
+        case 's':
+            if (optarg[0] == '-' && strlen(optarg) == 2) {
+                fprintf(stderr, "Option -s requires an argument\n");
+                errflg++;
+                break;
+            } else {
+                enum {
+                    KEY_BUFFER = 0,
+                    MAC_BUFFER,
+                    MSG_BUFFER
+                };
+
+                char *const token[] = {
+                    [KEY_BUFFER]   = "key_size",
+                    [MAC_BUFFER]   = "mac_buffer",
+                    [MSG_BUFFER]   = "message_buffer",
+                    NULL
+                };
+                
+                char *subopts;
+                char *value;
+                
+                subopts = optarg;
+                while (*subopts != '\0' && !errflg) {
+                    switch (getsubopt(&subopts, token, &value)) {
+                    case KEY_BUFFER:
+                        if (value == NULL) {
+                            fprintf(stderr, "Missing value for suboption '%s'\n", token[KEY_BUFFER]);
+                            errflg = 1;
+                            continue;
+                        }
+                        
+                        optSt->keyBufSizeGiven = true;
+                        keyBufSize = atol(value) * sizeof(*yaxaKey) * getBufSizeMultiple(value);
+                        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
+                    break;
+                    case MAC_BUFFER:
+                        if (value == NULL) {
+                            fprintf(stderr, "Missing value for suboption '%s'\n", token[MAC_BUFFER]);
+                            errflg = 1;
+                            continue;
+                        }
+                            
+                        optSt->macBufSizeGiven = true;
+                        genHmacBufSize = atol(value) * sizeof(uint8_t) * getBufSizeMultiple(value);
+                    break;
+                    case MSG_BUFFER:
+                        if (value == NULL) {
+                            fprintf(stderr, "Missing value for "
+                            "suboption '%s'\n", token[MSG_BUFFER]);
+                            errflg = 1;
+                            continue;
+                        }
+                        
+                        optSt->msgBufSizeGiven = true;
+                        
+                        /*Divide the amount specified by the size of cryptint_t since it will 
+                         * be multipled later*/
+                        msgBufSize = (atol(value) * getBufSizeMultiple(value)) / sizeof(cryptint_t);
+                    break;
+                    default:
+                        fprintf(stderr, "No match found for token: /%s/\n", value);
+                        errflg = 1;
+                    break;
+                    }
+                }
+            }
+        break;
+        case ':':
+            fprintf(stderr, "Option -%c requires an argument\n", optopt);
+            errflg++;
+        break;
+        case '?':
+            errflg++;
+        break;
+        }
+    }
+
+    if(optSt->encrypt && optSt->decrypt) {
+        fprintf(stderr, "-d and -e are mutually exlusive. Can only encrypt or decrypt, not both.\n");
+        errflg++;
+    }
+    if(optSt->passWordGiven && optSt->keyFileGiven) {
+        fprintf(stderr, "-p and -k are mutually exlusive. Can only use a password or keyfile, not both.\n");
+        errflg++;
+    }
+    if(!optSt->encrypt && !optSt->decrypt) {
+        fprintf(stderr, "Must specify to either encrypt or decrypt (-e or -d)\n");
+        errflg++;
+    }
+    if( !optSt->inputFileGiven && !optSt->outputFileGiven) {
+        fprintf(stderr, "Must specify an input and output file\n");
+        errflg++;
+    }
+    
+    if (errflg) {
+        printSyntax(binName);
+        exit(EXIT_FAILURE);
+    }
+}
+
+int main(int argc, char *argv[])
 {
-    printf("\
-\nUse: \
-\n\n%s [-e|-d] infile outfile [pass]\
-\n-e - encrypt infile to outfile\
-\n-d - decrypt infile to outfile\
-\n\
-",
-           arg);
-    printf("\nThis product includes software developed by the OpenSSL Project for use in the OpenSSL Toolkit. (http://www.openssl.org/)\n");
-    return EXIT_FAILURE;
+    if (argc == 1) {
+        printSyntax(argv[0]);
+        exit(EXIT_FAILURE);
+    }
+    
+    struct optionsStruct optSt = {0};
+
+    signal(SIGINT, signalHandler);
+
+    atexit(cleanUpBuffers);
+
+    allocateBuffers();
+    
+    parseOptions(argc, argv, &optSt);
+
+    OpenSSL_add_all_algorithms();
+
+    FILE *inFile = fopen(inputFileName, "rb");
+    if (inFile == NULL) {
+        printFileError(inputFileName, errno);
+        exit(EXIT_FAILURE);
+    }
+    FILE *outFile = fopen(outputFileName, "wb+");
+    if (outFile == NULL) {
+        printFileError(outputFileName, errno);
+        exit(EXIT_FAILURE);
+    }
+
+    cryptint_t fileSize;
+    
+    counterInt = 0;
+    keyInt = 0;
+
+    if (optSt.encrypt) {
+
+        if (!optSt.passWordGiven && !optSt.keyFileGiven) {
+            getPass("Enter password to encrypt with: ",userPass);
+
+            /*Get the password again to verify it wasn't misspelled*/
+            getPass("Verify password: ",userPassToVerify);
+            if (strcmp(userPass,userPassToVerify) != 0) {
+                printf("\nPasswords do not match.  Nothing done.\n\n");
+                exit(EXIT_FAILURE);
+            }
+        }
+        
+        if(optSt.keyFileGiven) {
+            genYaxaSalt();
+            
+            FILE *keyFile = fopen(keyFileName,"rb");
+            fread(yaxaKey,1,sizeof(*yaxaKey) * keyBufSize,keyFile);
+            fclose(keyFile);
+        } else {
+
+            genYaxaSalt();
+    
+            genYaxaKey();
+        }
+        
+        genCtrStart();
+        
+        genHMACKey();
+        
+        genPassTag();
+
+        fileSize = getFileSize(inputFileName);
+
+        /*Prepend salt to head of file*/
+        if (fwriteWErrCheck(yaxaSalt, sizeof(*yaxaSalt), yaxaSaltSize, outFile) != 0) {
+            printSysError(returnVal);
+            exit(EXIT_FAILURE);
+        }
+
+        /*Write passKeyedHash to head of file next to salt*/
+        if (fwriteWErrCheck(passKeyedHash, sizeof(*passKeyedHash), PASS_KEYED_HASH_SIZE, outFile) != 0) {
+            printSysError(returnVal);
+            exit(EXIT_FAILURE);
+        }
+
+        /*Encrypt file and write it out*/
+        doCrypt(inFile, outFile, fileSize);
+
+        if(fclose(inFile) != 0) {
+            printSysError(errno);
+            exit(EXIT_FAILURE);
+        }
+
+        /*Now get new filesize and reset flie position to beginning*/
+        fileSize = ftell(outFile);
+        rewind(outFile);
+
+        genHMAC(outFile, fileSize);
+
+        OPENSSL_cleanse(hmacKey, HMAC_KEY_SIZE);
+
+        /*Write the MAC to the end of the file*/
+        if (fwriteWErrCheck(generatedMAC, sizeof(*generatedMAC), MAC_SIZE, outFile) != 0) {
+            printSysError(returnVal);
+            exit(EXIT_FAILURE);
+        }
+
+        if(fclose(outFile) != 0) {
+            printSysError(errno);
+            exit(EXIT_FAILURE);
+        }
+
+    } else if (optSt.decrypt) {
+
+        if (!optSt.passWordGiven && !optSt.keyFileGiven)
+            getPass("Enter password to decrypt with: ",userPass);
+            
+        if (yaxaSaltSize > getFileSize(inputFileName)) { 
+            printf("Salt size is larger than the input file. Did you forget to specify the key size?\n");
+            exit(EXIT_FAILURE);
+        }
+
+        /*Read yaxaSalt from head of cipher-text*/
+        if (freadWErrCheck(yaxaSalt, sizeof(*yaxaSalt), yaxaSaltSize, inFile) != 0) {
+            printSysError(returnVal);
+            exit(EXIT_FAILURE);
+        }
+
+        /*Get passKeyedHashFromFile*/
+        if (freadWErrCheck(passKeyedHashFromFile, sizeof(*passKeyedHashFromFile), PASS_KEYED_HASH_SIZE, inFile) != 0) {
+            printSysError(returnVal);
+            exit(EXIT_FAILURE);
+        }
+
+        if(optSt.keyFileGiven) {
+            FILE *keyFile = fopen(keyFileName,"rb");
+            fread(yaxaKey,1,sizeof(*yaxaKey) * keyBufSize,keyFile);
+            fclose(keyFile);
+        } else {
+            genYaxaKey();
+        }
+        
+        genCtrStart();
+        
+        genHMACKey();
+        
+        genPassTag();
+
+        if (CRYPTO_memcmp(passKeyedHash, passKeyedHashFromFile, sizeof(*passKeyedHashFromFile) * PASS_KEYED_HASH_SIZE) != 0) {
+            if(optSt.keyFileGiven) {
+                printf("Wrong keyfile\n");
+            } else {
+                printf("Wrong password\n");
+            }
+            exit(EXIT_FAILURE);
+        }
+
+        /*Get filesize, discounting the salt and passKeyedHash*/
+        fileSize = getFileSize(inputFileName) - (yaxaSaltSize + PASS_KEYED_HASH_SIZE);
+
+        /*Move file position to the start of the MAC*/
+        fseek(inFile, (fileSize + yaxaSaltSize + PASS_KEYED_HASH_SIZE) - MAC_SIZE, SEEK_SET);
+
+        if (freadWErrCheck(fileMAC, sizeof(*fileMAC), MAC_SIZE, inFile) != 0) {
+            printSysError(returnVal);
+            exit(EXIT_FAILURE);
+        }
+
+        /*Reset file position to beginning of file*/
+        rewind(inFile);
+
+        genHMAC(inFile, (fileSize + (yaxaSaltSize + PASS_KEYED_HASH_SIZE)) - MAC_SIZE);
+
+        /*Verify MAC*/
+        if (CRYPTO_memcmp(fileMAC, generatedMAC, sizeof(*generatedMAC) * MAC_SIZE) != 0) {
+            printf("Message authentication failed\n");
+            exit(EXIT_FAILURE);
+        }
+
+        OPENSSL_cleanse(hmacKey, sizeof(*hmacKey) * HMAC_KEY_SIZE);
+
+        /*Reset file posiiton to beginning of cipher-text after the salt and pass tag*/
+        fseek(inFile, yaxaSaltSize + PASS_KEYED_HASH_SIZE, SEEK_SET);
+
+        /*Now decrypt the cipher-text, disocounting the size of the MAC*/
+        doCrypt(inFile, outFile, fileSize - MAC_SIZE);
+
+        if(fclose(outFile) != 0) {
+            printSysError(errno);
+            exit(EXIT_FAILURE);
+        }
+        if(fclose(inFile) != 0) {
+            printSysError(errno);
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    return EXIT_SUCCESS;
 }

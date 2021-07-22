@@ -205,7 +205,7 @@ int workThread()
         strcpy(statusMessage,"Writing salt...");
         *overallProgressFraction = .5;
         /*Prepend salt to head of file*/
-        if (fwriteWErrCheck(yaxaSalt, sizeof(*yaxaSalt), YAXA_SALT_SIZE, outFile) != 0) {
+        if (fwriteWErrCheck(yaxaSalt, sizeof(*yaxaSalt), yaxaSaltSize, outFile) != 0) {
             printSysError(returnVal);
             printError("Could not write salt");
             exit(EXIT_FAILURE);
@@ -269,7 +269,7 @@ int workThread()
         strcpy(statusMessage,"Reading salt...");
         *overallProgressFraction = .1;
         /*Read yaxaSalt from head of cipher-text*/
-        if (freadWErrCheck(yaxaSalt, sizeof(*yaxaSalt), YAXA_SALT_SIZE, inFile) != 0) {
+        if (freadWErrCheck(yaxaSalt, sizeof(*yaxaSalt), yaxaSaltSize, inFile) != 0) {
             printSysError(returnVal);
             printError("Could not read salt");
             exit(EXIT_FAILURE);
@@ -308,10 +308,10 @@ int workThread()
         }
 
         /*Get filesize, discounting the salt and passKeyedHash*/
-        fileSize = getFileSize(inputFilePath) - (YAXA_SALT_SIZE + PASS_KEYED_HASH_SIZE);
+        fileSize = getFileSize(inputFilePath) - (yaxaSaltSize + PASS_KEYED_HASH_SIZE);
 
         /*Move file position to the start of the MAC*/
-        fseek(inFile, (fileSize + YAXA_SALT_SIZE + PASS_KEYED_HASH_SIZE) - MAC_SIZE, SEEK_SET);
+        fseek(inFile, (fileSize + yaxaSaltSize + PASS_KEYED_HASH_SIZE) - MAC_SIZE, SEEK_SET);
 
         if (freadWErrCheck(fileMAC, sizeof(*fileMAC), MAC_SIZE, inFile) != 0) {
             printSysError(returnVal);
@@ -324,7 +324,7 @@ int workThread()
 
         strcpy(statusMessage,"Authenticating data...");
         *overallProgressFraction = .7;
-        genHMAC(inFile, (fileSize + (YAXA_SALT_SIZE + PASS_KEYED_HASH_SIZE)) - MAC_SIZE);
+        genHMAC(inFile, (fileSize + (yaxaSaltSize + PASS_KEYED_HASH_SIZE)) - MAC_SIZE);
 
         /*Verify MAC*/
         if (CRYPTO_memcmp(fileMAC, generatedMAC, sizeof(*generatedMAC) * MAC_SIZE) != 0) {
@@ -336,7 +336,7 @@ int workThread()
         OPENSSL_cleanse(hmacKey, sizeof(*hmacKey) * HMAC_KEY_SIZE);
 
         /*Reset file posiiton to beginning of cipher-text after the salt and pass tag*/
-        fseek(inFile, YAXA_SALT_SIZE + PASS_KEYED_HASH_SIZE, SEEK_SET);
+        fseek(inFile, yaxaSaltSize + PASS_KEYED_HASH_SIZE, SEEK_SET);
         
         strcpy(statusMessage,"Decrypting...");
         *overallProgressFraction = .8;

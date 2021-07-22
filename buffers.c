@@ -1,6 +1,6 @@
 void allocateBuffers()
 {
-    yaxaKey = calloc(YAXA_KEYBUF_SIZE, sizeof(*yaxaKey));
+    yaxaKey = calloc(keyBufSize, sizeof(*yaxaKey));
     if (yaxaKey == NULL) {
         printSysError(errno);
         printError("Could not allocate yaxaKey buffer");
@@ -28,7 +28,7 @@ void allocateBuffers()
         exit(EXIT_FAILURE);
     }
 
-    yaxaSalt = calloc(YAXA_SALT_SIZE, sizeof(*yaxaSalt));
+    yaxaSalt = calloc(yaxaSaltSize, sizeof(*yaxaSalt));
     if (yaxaSalt == NULL) {
         printSysError(errno);
         printError("Could not allocate yaxaSalt buffer");
@@ -45,7 +45,7 @@ void allocateBuffers()
 
 void cleanUpBuffers()
 {
-    OPENSSL_cleanse(yaxaKey, YAXA_KEYBUF_SIZE);
+    OPENSSL_cleanse(yaxaKey, keyBufSize);
     free(yaxaKey);
     OPENSSL_cleanse(hmacKey, HMAC_KEY_SIZE);
     free(hmacKey);

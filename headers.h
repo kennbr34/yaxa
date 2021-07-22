@@ -17,6 +17,8 @@
 #include <gtk/gtk.h>
 #endif
 #include <sys/mman.h>
+#include <getopt.h>
+#include <ctype.h>
 
 /*Define the size of the integer to be used in XOR operations*/
 typedef unsigned __int128 cryptint_t;
