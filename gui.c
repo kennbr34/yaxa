@@ -192,6 +192,9 @@ int workThread()
         strcpy(statusMessage,"Generating counter start...");
         genCtrStart();
         
+        strcpy(statusMessage,"Generating nonce...");
+        genNonce();
+        
         strcpy(statusMessage,"Generation auth key...");
         *overallProgressFraction = .3;
         genHMACKey();
@@ -290,6 +293,9 @@ int workThread()
         
         strcpy(statusMessage,"Generating counter start...");
         genCtrStart();
+        
+        strcpy(statusMessage,"Generating nonce...");
+        genNonce();
         
         strcpy(statusMessage,"Generating auth key...");
         *overallProgressFraction = .4;

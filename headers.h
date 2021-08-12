@@ -21,7 +21,12 @@
 #include <ctype.h>
 
 /*Define the size of the integer to be used in XOR operations*/
+
+#ifdef __64bit
+typedef uint64_t cryptint_t;
+#else
 typedef unsigned __int128 cryptint_t;
+#endif
 
 /*Do NOT change the order of these*/
 

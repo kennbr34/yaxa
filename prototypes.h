@@ -10,6 +10,7 @@ void genPassTag();                                                       /*Gener
 void genYaxaSalt();                                                      /*Generates YAXA salt*/
 void genYaxaKey();                                                       /*YAXA key deriving function*/
 void genCtrStart();	                                                     /*Derive starting point for Ctr from key*/
+void genNonce();
 cryptint_t getFileSize(const char *filename);                     /*Returns filesize using stat()*/
 char *getPass(const char *prompt, char *paddedPass);                                      /*Function to retrive passwords with no echo*/
 uint8_t printSyntax(char *arg);                                              /*Print program usage and help*/

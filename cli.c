@@ -322,14 +322,14 @@ int main(int argc, char *argv[])
     }
     
     struct optionsStruct optSt = {0};
+    
+    parseOptions(argc, argv, &optSt);
 
     signal(SIGINT, signalHandler);
 
     atexit(cleanUpBuffers);
 
     allocateBuffers();
-    
-    parseOptions(argc, argv, &optSt);
 
     OpenSSL_add_all_algorithms();
 
@@ -366,6 +366,11 @@ int main(int argc, char *argv[])
             genYaxaSalt();
             
             FILE *keyFile = fopen(keyFileName,"rb");
+            if (keyFile == NULL) {
+                printFileError(keyFileName, errno);
+                exit(EXIT_FAILURE);
+            }
+            
             fread(yaxaKey,1,sizeof(*yaxaKey) * keyBufSize,keyFile);
             fclose(keyFile);
         } else {
@@ -376,6 +381,8 @@ int main(int argc, char *argv[])
         }
         
         genCtrStart();
+        
+        genNonce();
         
         genHMACKey();
         
@@ -453,6 +460,8 @@ int main(int argc, char *argv[])
         }
         
         genCtrStart();
+        
+        genNonce();
         
         genHMACKey();
         

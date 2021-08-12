@@ -6,6 +6,11 @@ void doCrypt(FILE *inFile, FILE *outFile, cryptint_t fileSize)
     #endif
     
     uint8_t *inBuffer = calloc(msgBufSize,sizeof(*inBuffer)), *outBuffer = calloc(msgBufSize,sizeof(*outBuffer));
+    if (inBuffer == NULL || outBuffer == NULL) {
+        printSysError(errno);
+        printError("Could not allocate memory for doCrypt buffers");
+        exit(EXIT_FAILURE);
+    }
     cryptint_t remainingBytes = fileSize;
     cryptint_t outInt, inInt;
 
@@ -49,6 +54,11 @@ void genHMAC(FILE *dataFile, cryptint_t fileSize)
     #endif
     
     uint8_t *genHmacBuffer = malloc(genHmacBufSize * sizeof(*genHmacBuffer));
+    if (genHmacBuffer == NULL) {
+        printSysError(errno);
+        printError("Could not allocate memory for genHmacBuffer");
+        exit(EXIT_FAILURE);
+    }
     cryptint_t remainingBytes = fileSize;
 
     /*Initiate HMAC*/
@@ -261,6 +271,11 @@ void genCtrStart()
 		ERR_print_errors_fp(stderr);
 		exit(EXIT_FAILURE);
 	}
+    if (EVP_PKEY_CTX_add1_hkdf_info(pctx, "counter", strlen("counter")) <= 0) {
+        printError("HKDF failed\n");
+        ERR_print_errors_fp(stderr);
+        exit(EXIT_FAILURE);
+    }
 	if (EVP_PKEY_derive(pctx, counterBytes, &outlen) <= 0) {
 		printError("HKDF failed\n");
 		ERR_print_errors_fp(stderr);
@@ -268,6 +283,44 @@ void genCtrStart()
 	}
 	
     memcpy(&counterInt,counterBytes,outlen);
+    
+	EVP_PKEY_CTX_free(pctx);
+}
+
+void genNonce()
+{	
+	/*Use HKDF to derive bytes for counterBytes based on yaxaKey*/
+	EVP_PKEY_CTX *pctx;
+	size_t outlen = sizeof(counterInt);
+	pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, NULL);
+	
+	if (EVP_PKEY_derive_init(pctx) <= 0) {
+		printError("HKDF failed\n");
+		ERR_print_errors_fp(stderr);
+		exit(EXIT_FAILURE);
+	}
+	if (EVP_PKEY_CTX_set_hkdf_md(pctx, EVP_sha512()) <= 0) {
+		printError("HKDF failed\n");
+		ERR_print_errors_fp(stderr);
+		exit(EXIT_FAILURE);
+	}
+	if (EVP_PKEY_CTX_set1_hkdf_key(pctx, yaxaKey, sizeof(*yaxaKey) * keyBufSize) <= 0) {
+		printError("HKDF failed\n");
+		ERR_print_errors_fp(stderr);
+		exit(EXIT_FAILURE);
+	}
+    if (EVP_PKEY_CTX_add1_hkdf_info(pctx, "nonce", strlen("nonce")) <= 0) {
+        printError("HKDF failed\n");
+        ERR_print_errors_fp(stderr);
+        exit(EXIT_FAILURE);
+    }
+	if (EVP_PKEY_derive(pctx, counterBytes, &outlen) <= 0) {
+		printError("HKDF failed\n");
+		ERR_print_errors_fp(stderr);
+		exit(EXIT_FAILURE);
+	}
+	
+    memcpy(&nonceInt,nonceBytes,outlen);
     
 	EVP_PKEY_CTX_free(pctx);
 }
@@ -306,8 +359,8 @@ cryptint_t yaxa(cryptint_t messageInt)
     if (k + 1 >= keyBufSize)
         k = 0;
         
-    /*Ctr ^ K ^ M*/
+    /*Ctr ^ K ^ N ^ M*/
     /*All values are 128-bit*/
-    
-    return (counterInt *= keyInt) ^ keyInt ^ messageInt;
+            
+    return counterInt++ ^ keyInt ^ nonceInt ^ messageInt;
 }

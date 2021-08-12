@@ -7,20 +7,6 @@ void allocateBuffers()
         exit(EXIT_FAILURE);
     }
 
-    userPass = calloc(MAX_PASS_SIZE, sizeof(*userPass));
-    if (userPass == NULL) {
-        printSysError(errno);
-        printError("Could not allocate userPass buffer");
-        exit(EXIT_FAILURE);
-    }
-    
-    userPassToVerify = calloc(MAX_PASS_SIZE, sizeof(*userPassToVerify));
-    if (userPassToVerify == NULL) {
-        printSysError(errno);
-        printError("Could not allocate userPass buffer");
-        exit(EXIT_FAILURE);
-    }
-
     yaxaKeyChunk = calloc(YAXA_KEY_CHUNK_SIZE, sizeof(*yaxaKeyChunk));
     if (yaxaKeyChunk == NULL) {
         printSysError(errno);
@@ -51,10 +37,9 @@ void cleanUpBuffers()
     free(hmacKey);
     OPENSSL_cleanse(yaxaKeyChunk, YAXA_KEY_CHUNK_SIZE);
     free(yaxaKeyChunk);
+    
     OPENSSL_cleanse(userPass, strlen(userPass));
-    free(userPass);
     OPENSSL_cleanse(userPassToVerify, strlen(userPassToVerify));
-    free(userPassToVerify);
 
     free(yaxaSalt);
 }
