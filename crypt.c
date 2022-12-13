@@ -1,4 +1,4 @@
-void doCrypt(FILE *inFile, FILE *outFile, cryptint_t fileSize)
+void doCrypt(FILE *inFile, FILE *outFile, cryptint_t fileSize, FILE *otpInFile, FILE *otpOutFile)
 {
     
     #ifdef gui
@@ -11,10 +11,29 @@ void doCrypt(FILE *inFile, FILE *outFile, cryptint_t fileSize)
         printError("Could not allocate memory for doCrypt buffers");
         exit(EXIT_FAILURE);
     }
+    
+    uint8_t *otpBuffer = NULL;
+    if(otpInFile != NULL) {
+        otpBuffer = calloc(msgBufSize,sizeof(*otpBuffer));
+        if (otpBuffer == NULL) {
+            printSysError(errno);
+            printError("Could not allocate memory for doCrypt buffers");
+            exit(EXIT_FAILURE);
+        }
+    }
+    
+    /*Initiate HMAC*/
+    HMAC_CTX *ctx = HMAC_CTX_new();
+    HMAC_Init_ex(ctx, hmacKey, HMAC_KEY_SIZE, EVP_sha512(), NULL);
+    
+    HMAC_Update(ctx, yaxaSalt, sizeof(*yaxaSalt) * yaxaSaltSize);
+    HMAC_Update(ctx, passKeyedHash, sizeof(*passKeyedHash) * PASS_KEYED_HASH_SIZE);
+    
     cryptint_t remainingBytes = fileSize;
     cryptint_t outInt, inInt;
 
-    for (cryptint_t i = 0; remainingBytes; i += msgBufSize) {
+    cryptint_t i;
+    for (i = 0; remainingBytes; i += msgBufSize) {
         
         if(msgBufSize > remainingBytes) {
             msgBufSize = remainingBytes;
@@ -25,10 +44,18 @@ void doCrypt(FILE *inFile, FILE *outFile, cryptint_t fileSize)
             printError("Could not read file for encryption/decryption");
             exit(EXIT_FAILURE);
         }
+        
+        if(otpInFile != NULL) {
+            if (freadWErrCheck(otpBuffer, sizeof(*otpBuffer) * msgBufSize, 1, otpInFile) != 0) {
+                printSysError(returnVal);
+                printError("Could not read OTP file for encryption/decryption");
+                exit(EXIT_FAILURE);
+            }
+        }
 
         for(uint32_t j = 0; j < msgBufSize; j += sizeof(inInt)) {
             memcpy(&inInt,inBuffer + j,sizeof(inInt));
-            outInt = yaxa(inInt);
+            outInt = yaxa(inInt,otpBuffer);
             memcpy(outBuffer + j,&outInt,sizeof(outInt));
         }
 
@@ -37,11 +64,26 @@ void doCrypt(FILE *inFile, FILE *outFile, cryptint_t fileSize)
             printError("Could not write file for encryption/decryption");
             exit(EXIT_FAILURE);
         }
+        
+        HMAC_Update(ctx, outBuffer, sizeof(*outBuffer) * msgBufSize);
+        
+        if(otpInFile != NULL && otpOutFile != NULL) {
+            if (fwriteWErrCheck(otpBuffer, sizeof(*otpBuffer) * msgBufSize, 1, otpOutFile) != 0) {
+                printSysError(returnVal);
+                printError("Could not write file for encryption/decryption");
+                exit(EXIT_FAILURE);
+            }
+        }
+        
         #ifdef gui
         *progressFraction = (double)i / (double)fileSize;
         #endif
         remainingBytes -= msgBufSize;
     }
+    
+    i += yaxaSaltSize + PASS_KEYED_HASH_SIZE;
+    HMAC_Final(ctx, generatedMAC, (unsigned int *)&i);
+    HMAC_CTX_free(ctx);
     
     free(inBuffer);
     free(outBuffer);
@@ -291,7 +333,7 @@ void genNonce()
 {	
 	/*Use HKDF to derive bytes for counterBytes based on yaxaKey*/
 	EVP_PKEY_CTX *pctx;
-	size_t outlen = sizeof(counterInt);
+	size_t outlen = sizeof(nonceInt);
 	pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, NULL);
 	
 	if (EVP_PKEY_derive_init(pctx) <= 0) {
@@ -314,7 +356,7 @@ void genNonce()
         ERR_print_errors_fp(stderr);
         exit(EXIT_FAILURE);
     }
-	if (EVP_PKEY_derive(pctx, counterBytes, &outlen) <= 0) {
+	if (EVP_PKEY_derive(pctx, nonceBytes, &outlen) <= 0) {
 		printError("HKDF failed\n");
 		ERR_print_errors_fp(stderr);
 		exit(EXIT_FAILURE);
@@ -347,20 +389,32 @@ void genYaxaSalt()
     }
 }
 
-cryptint_t yaxa(cryptint_t messageInt)
+cryptint_t yaxa(cryptint_t messageInt, uint8_t *otpBuffer)
 {
-    /*Fill up 128-bit key integer with 16 8-bit bytes from yaxaKey*/
-    for (uint8_t i = 0; i < sizeof(keyInt); i++)
-        keyBytes[i] = yaxaKey[k++];
+    if(otpBuffer != NULL) {
+        /*Fill up 128-bit key integer with 16 8-bit bytes from yaxaKey*/
+        for (uint8_t i = 0; i < sizeof(keyInt); i++)
+            keyBytes[i] = otpBuffer[k++];
+            
+        memcpy(&keyInt,keyBytes,sizeof(keyInt));
         
-    memcpy(&keyInt,keyBytes,sizeof(keyInt));
-
-    /*Reset to the start of the key if reached the end*/
-    if (k + 1 >= keyBufSize)
-        k = 0;
+        /*Reset to the start of the key if reached the end*/
+        if (k + 1 >= msgBufSize)
+            k = 0;
+    } else {
+    /*Fill up 128-bit key integer with 16 8-bit bytes from yaxaKey*/
+        for (uint8_t i = 0; i < sizeof(keyInt); i++)
+            keyBytes[i] = yaxaKey[k++];
+            
+        memcpy(&keyInt,keyBytes,sizeof(keyInt));
+        
+        /*Reset to the start of the key if reached the end*/
+        if (k + 1 >= keyBufSize)
+            k = 0;
+    }
         
     /*Ctr ^ K ^ N ^ M*/
     /*All values are 128-bit*/
-            
+
     return counterInt++ ^ keyInt ^ nonceInt ^ messageInt;
 }

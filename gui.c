@@ -11,7 +11,13 @@ void on_encryptButton_clicked(GtkWidget *wid, gpointer ptr);
 void on_decryptButton_clicked(GtkWidget *wid, gpointer ptr);
 static void inputFileSelect (GtkWidget *wid, gpointer ptr);
 static void outputFileSelect (GtkWidget *wid, gpointer ptr);
+static void keyFileSelect (GtkWidget *wid, gpointer ptr);
+static void otpFileSelect (GtkWidget *wid, gpointer ptr);
 void passVisibilityToggle (GtkWidget *wid, gpointer ptr);
+void otpFileEntryDisable (void);
+void keyFileEntryDisable (void);
+void otpFileEntryEnable (void);
+void keyFileEntryEnable (void);
 static gboolean updateStatus(gpointer user_data);
 static gboolean updateProgress(gpointer user_data);
 static gboolean updateOverallProgress(gpointer user_data);
@@ -19,13 +25,27 @@ int workThread();
 
 GtkWidget *inputFileNameBox;
 GtkWidget *outputFileNameBox;
+GtkWidget *keyFileNameBox;
+GtkWidget *otpFileNameBox;
 GtkWidget *passwordBox;
 GtkWidget *passwordVerificationBox;
 
+GtkWidget *otpFileButton;
+GtkWidget *keyFileButton;
+
+GtkWidget *keySizeComboBox;
+GtkWidget *macBufSizeComboBox;
+GtkWidget *msgBufSizeComboBox;
+
 const char *inputFilePath;
 const char *outputFilePath;
+const char *keyFilePath;
+const char *otpFilePath;
 const char *passWord;
 const char *verificationPass;
+const char *keySizeComboBoxText;
+const char *macBufSizeComboBoxText;
+const char *msgBufSizeComboBoxText;
 
 char action = 0;
 
@@ -36,6 +56,8 @@ GtkWidget *overallProgressBar;
 double *overallProgressFraction;
 
 GtkWidget *progressBar;
+
+struct optionsStruct optSt = {0};
 
 int main(int argc, char *argv[])
 {
@@ -84,10 +106,83 @@ int main(int argc, char *argv[])
     gtk_entry_set_invisible_char(GTK_ENTRY (passwordVerificationBox),'*');
     gtk_entry_set_visibility(GTK_ENTRY (passwordVerificationBox), FALSE);
     
+    GtkWidget *keySizeLabel = gtk_label_new ("Key Size");
+    keySizeComboBox = gtk_combo_box_text_new ();
+    gtk_widget_set_tooltip_text (keySizeComboBox, "This controls the size of the key that will be derived from the password");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (keySizeComboBox), "1 Mb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (keySizeComboBox), "2 Mb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (keySizeComboBox), "4 Mb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (keySizeComboBox), "8 Mb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (keySizeComboBox), "16 Mb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (keySizeComboBox), "32 Mb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (keySizeComboBox), "64 Mb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (keySizeComboBox), "128 Mb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (keySizeComboBox), "256 Mb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (keySizeComboBox), "512 Mb");
+    gtk_combo_box_set_active (GTK_COMBO_BOX (keySizeComboBox), 5);
+    
     GtkWidget *visibilityButton = gtk_check_button_new_with_label ("Show Password");
     gtk_widget_set_tooltip_text (visibilityButton, "Hint: Use this to avoid typos");
     gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (visibilityButton), FALSE);
     g_signal_connect (visibilityButton, "toggled", G_CALLBACK (passVisibilityToggle),NULL);
+    
+    GtkWidget *keyFileLabel = gtk_label_new ("Key File Path");
+    keyFileNameBox = gtk_entry_new ();
+    g_signal_connect (keyFileNameBox, "insert-text", G_CALLBACK (otpFileEntryDisable), NULL);
+    g_signal_connect (keyFileNameBox, "delete-text", G_CALLBACK (otpFileEntryEnable), NULL);
+    gtk_widget_set_tooltip_text (keyFileNameBox, "Enter the full path to the key you want to encrypt with here");
+    keyFileButton = gtk_button_new_with_label ("Select File");
+    gtk_widget_set_tooltip_text (keyFileButton, "Select the key file you want to encrypt with here");
+    g_signal_connect (keyFileButton, "clicked", G_CALLBACK (keyFileSelect), win);
+    g_signal_connect (keyFileButton, "clicked", G_CALLBACK (otpFileEntryDisable), NULL);
+    
+    GtkWidget *otpFileLabel = gtk_label_new ("One-Time-Pad File Path");
+    otpFileNameBox = gtk_entry_new ();
+    g_signal_connect (otpFileNameBox, "insert-text", G_CALLBACK (keyFileEntryDisable), NULL);
+    g_signal_connect (otpFileNameBox, "delete-text", G_CALLBACK (keyFileEntryEnable), NULL);
+    gtk_widget_set_tooltip_text (otpFileNameBox, "Enter the full path to the one-time-pad you want to encrypt with here");
+    otpFileButton = gtk_button_new_with_label ("Select File");
+    gtk_widget_set_tooltip_text (otpFileButton, "Select the one-time-pad file you want to encrypt with here");
+    g_signal_connect (otpFileButton, "clicked", G_CALLBACK (otpFileSelect), win);
+    g_signal_connect (otpFileButton, "clicked", G_CALLBACK (keyFileEntryDisable), NULL);
+    
+    GtkWidget *macBufSizeLabel = gtk_label_new ("Authentication Buffer Size");
+    macBufSizeComboBox = gtk_combo_box_text_new ();
+    gtk_widget_set_tooltip_text (macBufSizeComboBox, "This controls the size of the buffer used for authenticating data");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "1 Mb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "2 Mb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "4 Mb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "8 Mb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "16 Mb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "32 Mb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "64 Mb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "128 Mb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "256 Mb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "512 Mb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "1 Gb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "2 Gb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "4 Gb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "8 Gb");
+    gtk_combo_box_set_active (GTK_COMBO_BOX (macBufSizeComboBox), 0);
+    
+    GtkWidget *msgBufSizeLabel = gtk_label_new ("File Buffer Size");
+    msgBufSizeComboBox = gtk_combo_box_text_new ();
+    gtk_widget_set_tooltip_text (msgBufSizeComboBox, "This controls the size of the buffer used for encryption/decryption data");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "1 Mb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "2 Mb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "4 Mb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "8 Mb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "16 Mb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "32 Mb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "64 Mb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "128 Mb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "256 Mb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "512 Mb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "1 Gb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "2 Gb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "4 Gb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "8 Gb");
+    gtk_combo_box_set_active (GTK_COMBO_BOX (msgBufSizeComboBox), 0);
     
     GtkWidget *encryptButton = gtk_button_new_with_label ("Encrypt");
     g_signal_connect (encryptButton, "clicked", G_CALLBACK (on_encryptButton_clicked), NULL);
@@ -123,13 +218,25 @@ int main(int argc, char *argv[])
     gtk_grid_attach (GTK_GRID (grid), passwordLabel, 0, 7, 1, 1);
     gtk_grid_attach (GTK_GRID (grid), passwordBox, 0, 8, 1, 1);
     gtk_grid_attach (GTK_GRID (grid), verificationLabel, 0, 9, 1, 1);
+    gtk_grid_attach (GTK_GRID (grid), keySizeLabel, 1, 9, 1, 1);
     gtk_grid_attach (GTK_GRID (grid), passwordVerificationBox, 0, 10, 1, 1);
+    gtk_grid_attach (GTK_GRID (grid), keySizeComboBox, 1, 10, 1, 1);
     gtk_grid_attach (GTK_GRID (grid), visibilityButton, 1, 8, 1, 1);
-    gtk_grid_attach (GTK_GRID (grid), encryptButton, 0, 12, 2, 1);
-    gtk_grid_attach (GTK_GRID (grid), decryptButton, 0, 13, 2, 1);
-    gtk_grid_attach (GTK_GRID (grid), progressBar, 0, 14, 2, 1);
-    gtk_grid_attach (GTK_GRID (grid), overallProgressBar, 0, 15, 2, 1);
-    gtk_grid_attach (GTK_GRID (grid), statusBar, 0, 16, 2, 1);
+    gtk_grid_attach (GTK_GRID (grid), keyFileLabel, 0, 11, 1, 1);
+    gtk_grid_attach (GTK_GRID (grid), keyFileNameBox, 0, 12, 1, 1);
+    gtk_grid_attach (GTK_GRID (grid), keyFileButton, 1, 12, 1, 1);
+    gtk_grid_attach (GTK_GRID (grid), otpFileLabel, 0, 13, 1, 1);
+    gtk_grid_attach (GTK_GRID (grid), otpFileNameBox, 0, 14, 1, 1);
+    gtk_grid_attach (GTK_GRID (grid), otpFileButton, 1, 14, 1, 1);
+    gtk_grid_attach (GTK_GRID (grid), macBufSizeLabel, 0, 15, 1, 1);
+    gtk_grid_attach (GTK_GRID (grid), msgBufSizeLabel, 1, 15, 1, 1);
+    gtk_grid_attach (GTK_GRID (grid), macBufSizeComboBox, 0, 16, 1, 1);
+    gtk_grid_attach (GTK_GRID (grid), msgBufSizeComboBox, 1, 16, 1, 1);
+    gtk_grid_attach (GTK_GRID (grid), encryptButton, 0, 17, 2, 1);
+    gtk_grid_attach (GTK_GRID (grid), decryptButton, 0, 18, 2, 1);
+    gtk_grid_attach (GTK_GRID (grid), progressBar, 0, 19, 2, 1);
+    gtk_grid_attach (GTK_GRID (grid), overallProgressBar, 0, 20, 2, 1);
+    gtk_grid_attach (GTK_GRID (grid), statusBar, 0, 21, 2, 1);
     
     
     gtk_container_add (GTK_CONTAINER (win), grid);
@@ -147,21 +254,6 @@ int workThread()
     pid_t p = fork();
     if(p) return 0;
     
-    if(!strlen(userPass)) {
-        strcpy(statusMessage,"No password entered");
-        exit(EXIT_FAILURE);
-    }
-    
-    if(!strlen(inputFilePath)) {
-        strcpy(statusMessage, "No input file specified");
-        exit(EXIT_FAILURE);
-    }
-    
-    if(!strlen(outputFilePath)) {
-        strcpy(statusMessage, "No output file specified");
-        exit(EXIT_FAILURE);
-    }
-    
     FILE *inFile = fopen(inputFilePath, "rb");
     if (inFile == NULL) {
         printFileError(inputFilePath, errno);
@@ -172,6 +264,9 @@ int workThread()
         printFileError(outputFilePath, errno);
         exit(EXIT_FAILURE);
     }
+    
+    FILE *otpInFile;
+    FILE *otpOutFile;
 
     cryptint_t fileSize;
     
@@ -180,14 +275,72 @@ int workThread()
     k = 0;
 
     if (action == 'e') {
+        
+        if(optSt.keyFileGiven) {
+            strcpy(statusMessage,"Generating salt...");
+            *overallProgressFraction = .1;
+            genYaxaSalt();
+            
+            FILE *keyFile = fopen(keyFileName,"rb");
+            if (keyFile == NULL) {
+                printFileError(keyFileName, errno);
+                exit(EXIT_FAILURE);
+            }
+            
+            if(!optSt.passWordGiven) {
+                fread(yaxaKey,1,sizeof(*yaxaKey) * keyBufSize,keyFile);
+                fclose(keyFile);
+            } else {
+                keyBufSize += HMAC_KEY_SIZE;
+                free(yaxaKey);
+                yaxaKey = calloc(keyBufSize, sizeof(*yaxaKey));
+                if (yaxaKey == NULL) {
+                    printSysError(errno);
+                    printError("Could not allocate yaxaKey buffer");
+                    exit(EXIT_FAILURE);
+                }
+                strcpy(statusMessage,"Generating encryption key...");
+                *overallProgressFraction = .2;
+                genYaxaKey();
+                fread(yaxaKey + HMAC_KEY_SIZE,1,sizeof(*yaxaKey) * (keyBufSize - HMAC_KEY_SIZE),keyFile);
+                fclose(keyFile);
+            }
+            
+        } else if(optSt.oneTimePad) {
+            
+            keyBufSize = HMAC_KEY_SIZE;
+            
+            strcpy(statusMessage,"Generating salt...");
+            *overallProgressFraction = .1;
+            genYaxaSalt();
+            
+            otpInFile = fopen(otpInFileName,"rb");
+            if (otpInFile == NULL) {
+                printFileError(otpInFileName, errno);
+                exit(EXIT_FAILURE);
+            }
+            
+            otpOutFile = fopen(otpOutFileName,"wb");
+            
+            if(optSt.passWordGiven) {
+                strcpy(statusMessage,"Generating enecryption key...");
+                *overallProgressFraction = .2;
+                genYaxaKey();
+            } else {
+                fread(yaxaKey,sizeof(*yaxaKey),HMAC_KEY_SIZE,otpInFile);
+                fwrite(yaxaKey,sizeof(*yaxaKey),HMAC_KEY_SIZE,otpOutFile);
+            }
+            
+        } else {
 
-        strcpy(statusMessage,"Generating salt...");
-        *overallProgressFraction = .1;
-        genYaxaSalt();
-
-        strcpy(statusMessage,"Generating enecryption key...");
-        *overallProgressFraction = .2;
-        genYaxaKey();
+            strcpy(statusMessage,"Generating salt...");
+            *overallProgressFraction = .1;
+            genYaxaSalt();
+    
+            strcpy(statusMessage,"Generating enecryption key...");
+            *overallProgressFraction = .2;
+            genYaxaKey();
+        }
         
         strcpy(statusMessage,"Generating counter start...");
         genCtrStart();
@@ -227,22 +380,17 @@ int workThread()
         *overallProgressFraction = .7;
         
         /*Encrypt file and write it out*/
-        doCrypt(inFile, outFile, fileSize);
+        if(optSt.oneTimePad) {
+            doCrypt(inFile, outFile, fileSize, otpInFile, otpOutFile);
+        } else {
+            doCrypt(inFile, outFile, fileSize, NULL, NULL);
+        }
 
         if(fclose(inFile) != 0) {
             printSysError(errno);
             printError("Error closing file");
             exit(EXIT_FAILURE);
         }
-
-        /*Now get new filesize and reset flie position to beginning*/
-        fileSize = ftell(outFile);
-        rewind(outFile);
-        
-        strcpy(statusMessage,"Generating MAC...");
-        *overallProgressFraction = .8;
-        
-        genHMAC(outFile, fileSize);
 
         OPENSSL_cleanse(hmacKey, sizeof(*hmacKey) * HMAC_KEY_SIZE);
 
@@ -268,7 +416,6 @@ int workThread()
         exit(EXIT_SUCCESS);
 
     } else if (action == 'd') {
-
         strcpy(statusMessage,"Reading salt...");
         *overallProgressFraction = .1;
         /*Read yaxaSalt from head of cipher-text*/
@@ -286,10 +433,50 @@ int workThread()
             printError("Could not read password hash");
             exit(EXIT_FAILURE);
         }
-
-        strcpy(statusMessage,"Generating decryption key...");
-        *overallProgressFraction = .3;
-        genYaxaKey();
+        
+        if(optSt.keyFileGiven) {
+            FILE *keyFile = fopen(keyFileName,"rb");
+            if(!optSt.passWordGiven) {
+                fread(yaxaKey,1,sizeof(*yaxaKey) * keyBufSize,keyFile);
+                fclose(keyFile);
+            } else {
+                keyBufSize += HMAC_KEY_SIZE;
+                free(yaxaKey);
+                yaxaKey = calloc(keyBufSize, sizeof(*yaxaKey));
+                if (yaxaKey == NULL) {
+                    printSysError(errno);
+                    printError("Could not allocate yaxaKey buffer");
+                    exit(EXIT_FAILURE);
+                }
+                strcpy(statusMessage,"Generating decryption key...");
+                *overallProgressFraction = .3;
+                genYaxaKey();
+                fread(yaxaKey + HMAC_KEY_SIZE,1,sizeof(*yaxaKey) * (keyBufSize - HMAC_KEY_SIZE),keyFile);
+                fclose(keyFile);
+            }
+        } else if(optSt.oneTimePad) {
+            
+            keyBufSize = HMAC_KEY_SIZE;
+            
+            otpInFile = fopen(otpInFileName,"rb");
+            if (otpInFile == NULL) {
+                printFileError(otpInFileName, errno);
+                exit(EXIT_FAILURE);
+            }
+            
+            if(optSt.passWordGiven) {
+                strcpy(statusMessage,"Generating decryption key...");
+                *overallProgressFraction = .3;
+                genYaxaKey();
+            } else {
+                fread(yaxaKey,sizeof(*yaxaKey),HMAC_KEY_SIZE,otpInFile);
+            }
+                        
+        } else {
+            strcpy(statusMessage,"Generating decryption key...");
+            *overallProgressFraction = .3;
+            genYaxaKey();
+        }
         
         strcpy(statusMessage,"Generating counter start...");
         genCtrStart();
@@ -307,7 +494,7 @@ int workThread()
 
         strcpy(statusMessage,"Verifying password...");
         *overallProgressFraction = .6;
-        if (CRYPTO_memcmp(passKeyedHash, passKeyedHashFromFile, sizeof(*passKeyedHash) * PASS_KEYED_HASH_SIZE) != 0) {
+        if (CRYPTO_memcmp(passKeyedHash, passKeyedHashFromFile, sizeof(*passKeyedHashFromFile) * PASS_KEYED_HASH_SIZE) != 0) {
             printf("Wrong password\n");
             strcpy(statusMessage,"Wrong password");
             exit(EXIT_FAILURE);
@@ -347,8 +534,12 @@ int workThread()
         strcpy(statusMessage,"Decrypting...");
         *overallProgressFraction = .8;
 
-        /*Now decrypt the cipher-text, disocounting the size of the MAC*/
-        doCrypt(inFile, outFile, fileSize - MAC_SIZE);
+        /*Now decrypt the cipher-text, disocounting the size of the MAC*/        
+        if(optSt.oneTimePad) {
+            doCrypt(inFile, outFile, fileSize - MAC_SIZE, otpInFile, NULL);
+        } else {
+            doCrypt(inFile, outFile, fileSize - MAC_SIZE, NULL, NULL);
+        }
 
         strcpy(statusMessage,"Saving file...");
         *overallProgressFraction = .9;
@@ -392,29 +583,192 @@ static gboolean updateOverallProgress(gpointer user_data)
 }
 void on_encryptButton_clicked(GtkWidget *wid, gpointer ptr)
 {
+    keyFileEntryEnable();
+    otpFileEntryEnable();
+    
     gboolean passwordsMatch = FALSE;
+    gboolean error = FALSE;
     
     inputFilePath = gtk_entry_get_text (GTK_ENTRY (inputFileNameBox));
     outputFilePath = gtk_entry_get_text (GTK_ENTRY (outputFileNameBox));
-    
     passWord = gtk_entry_get_text (GTK_ENTRY (passwordBox));
-    verificationPass = gtk_entry_get_text (GTK_ENTRY (passwordVerificationBox));
-    if(strcmp(passWord,verificationPass) == 0)
-        passwordsMatch = TRUE;
+    keyFilePath = gtk_entry_get_text (GTK_ENTRY (keyFileNameBox));
+    otpFilePath = gtk_entry_get_text (GTK_ENTRY (otpFileNameBox));
+    keySizeComboBoxText = gtk_combo_box_text_get_active_text (GTK_COMBO_BOX_TEXT (keySizeComboBox));
+    macBufSizeComboBoxText = gtk_combo_box_text_get_active_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox));
+    msgBufSizeComboBoxText = gtk_combo_box_text_get_active_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox));
     
-    if (passwordsMatch == FALSE) {
-        strcpy(statusMessage,"Passwords didn't match");
-    } else if(passwordsMatch == TRUE) {
-        snprintf(userPass,MAX_PASS_SIZE,"%s",passWord);
+    if(strlen(inputFilePath)) {
+        optSt.inputFileGiven = true;
+    } else {
+        strcpy(statusMessage,"Need input file...");
+        error = TRUE;
+    }
     
-        gtk_entry_set_text(GTK_ENTRY (passwordBox), "");
-        OPENSSL_cleanse((void *)passWord, strlen(passWord));
-        gtk_entry_set_text(GTK_ENTRY (passwordBox), passWord);
+    if(strlen(outputFilePath)) {
+        optSt.outputFileGiven = true;
+    } else {
+        strcpy(statusMessage,"Need output file...");
+        error = TRUE;
+    }
+    
+    if(strlen(passWord)) {
+        optSt.passWordGiven = true;
+    } else {
+        optSt.passWordGiven = false;
+    }
+    
+    if(strlen(keyFilePath)) {
+        optSt.keyFileGiven = true;
+        yaxaSaltSize = HMAC_KEY_SIZE;
+        strcpy(keyFileName,keyFilePath);
+        keyBufSize = getFileSize(keyFileName);
+    } else {
+        optSt.keyFileGiven = false;
+    }
+    
+    if(strlen(otpFilePath)) {
+        optSt.oneTimePad = true;
+        yaxaSaltSize = 0;
+        strcpy(otpInFileName,otpFilePath);
+        snprintf(otpOutFileName, NAME_MAX, "%s", otpFilePath);
+        sprintf(otpOutFileName,"%s.pad", outputFilePath);
+    } else {
+        optSt.oneTimePad = false;
+    }
+    
+    if((optSt.passWordGiven && optSt.keyFileGiven) || (optSt.passWordGiven && optSt.oneTimePad)) {
+        yaxaSaltSize = HMAC_KEY_SIZE;
+    } else if (optSt.oneTimePad || optSt.keyFileGiven) {
+        yaxaSaltSize = 0;
+    }
+    
+    if(optSt.passWordGiven) {
+        verificationPass = gtk_entry_get_text (GTK_ENTRY (passwordVerificationBox));
+        if(strcmp(passWord,verificationPass) == 0)
+            passwordsMatch = TRUE;
         
-        gtk_entry_set_text(GTK_ENTRY (passwordVerificationBox), "");
-        OPENSSL_cleanse((void *)verificationPass, strlen(verificationPass));
-        gtk_entry_set_text(GTK_ENTRY (passwordVerificationBox), verificationPass);
+        if (passwordsMatch == FALSE) {
+            strcpy(statusMessage,"Passwords didn't match");
+            error = TRUE;
+        } else if(passwordsMatch == TRUE) {
+            snprintf(userPass,MAX_PASS_SIZE,"%s",passWord);
         
+            gtk_entry_set_text(GTK_ENTRY (passwordBox), "");
+            OPENSSL_cleanse((void *)passWord, strlen(passWord));
+            gtk_entry_set_text(GTK_ENTRY (passwordBox), passWord);
+            
+            gtk_entry_set_text(GTK_ENTRY (passwordVerificationBox), "");
+            OPENSSL_cleanse((void *)verificationPass, strlen(verificationPass));
+            gtk_entry_set_text(GTK_ENTRY (passwordVerificationBox), verificationPass);
+        }
+    }
+    
+    if(optSt.keyFileGiven && optSt.oneTimePad) {
+        strcpy(statusMessage,"Can only use keyfile OR one-time-pad");
+        error = TRUE;
+    }
+    
+    if(!strcmp(keySizeComboBoxText,"1 Mb")) {
+        keyBufSize = 1024*1024;
+        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
+    } else if(!strcmp(keySizeComboBoxText,"2 Mb")) {
+        keyBufSize = 2*1024*1024;
+        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
+    } else if(!strcmp(keySizeComboBoxText,"4 Mb")) {
+        keyBufSize = 4*1024*1024;
+        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
+    } else if(!strcmp(keySizeComboBoxText,"8 Mb")) {
+        keyBufSize = 8*1024*1024;
+        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
+    } else if(!strcmp(keySizeComboBoxText,"16 Mb")) {
+        keyBufSize = 16*1024*1024;
+        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
+    } else if(!strcmp(keySizeComboBoxText,"32 Mb")) {
+        keyBufSize = 32*1024*1024;
+        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
+    } else if(!strcmp(keySizeComboBoxText,"64 Mb")) {
+        keyBufSize = 64*1024*1024;
+        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
+    } else if(!strcmp(keySizeComboBoxText,"128 Mb")) {
+        keyBufSize = 128*1024*1024;
+        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
+    } else if(!strcmp(keySizeComboBoxText,"256 Mb")) {
+        keyBufSize = 256*1024*1024;
+        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
+    } else if(!strcmp(keySizeComboBoxText,"512 Mb")) {
+        keyBufSize = 512*1024*1024;
+        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
+    } else {
+        keyBufSize = 32*1024*1024;
+        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
+    }
+    
+    if(!strcmp(macBufSizeComboBoxText,"1 Mb")) {
+        genHmacBufSize = 1024*1024;
+    } else if(!strcmp(macBufSizeComboBoxText,"2 Mb")) {
+        genHmacBufSize = 2*1024*1024;
+    } else if(!strcmp(macBufSizeComboBoxText,"4 Mb")) {
+        genHmacBufSize = 4*1024*1024;
+    } else if(!strcmp(macBufSizeComboBoxText,"8 Mb")) {
+        genHmacBufSize = 8*1024*1024;
+    } else if(!strcmp(macBufSizeComboBoxText,"16 Mb")) {
+        genHmacBufSize = 16*1024*1024;
+    } else if(!strcmp(macBufSizeComboBoxText,"32 Mb")) {
+        genHmacBufSize = 32*1024*1024;
+    } else if(!strcmp(macBufSizeComboBoxText,"64 Mb")) {
+        genHmacBufSize = 64*1024*1024;
+    } else if(!strcmp(macBufSizeComboBoxText,"128 Mb")) {
+        genHmacBufSize = 128*1024*1024;
+    } else if(!strcmp(macBufSizeComboBoxText,"256 Mb")) {
+        genHmacBufSize = 256*1024*1024;
+    } else if(!strcmp(macBufSizeComboBoxText,"512 Mb")) {
+        genHmacBufSize = 512*1024*1024;
+    } else if(!strcmp(macBufSizeComboBoxText,"1 Gb")) {
+        genHmacBufSize = 1024*1024*1024;
+    } else if(!strcmp(macBufSizeComboBoxText,"2 Gb")) {
+        genHmacBufSize = 2*1024*1024;
+    } else if(!strcmp(macBufSizeComboBoxText,"4 Gb")) {
+        genHmacBufSize = 4*1024*1024;
+    } else if(!strcmp(macBufSizeComboBoxText,"8 Gb")) {
+        genHmacBufSize = 8*1024*1024;
+    } else {
+        genHmacBufSize = 1*1024*1024;
+    }
+    
+    if(!strcmp(msgBufSizeComboBoxText,"1 Mb")) {
+        msgBufSize = 1024*1024;
+    } else if(!strcmp(msgBufSizeComboBoxText,"2 Mb")) {
+        msgBufSize = 2*1024*1024;
+    } else if(!strcmp(msgBufSizeComboBoxText,"4 Mb")) {
+        msgBufSize = 4*1024*1024;
+    } else if(!strcmp(msgBufSizeComboBoxText,"8 Mb")) {
+        msgBufSize = 8*1024*1024;
+    } else if(!strcmp(msgBufSizeComboBoxText,"16 Mb")) {
+        msgBufSize = 16*1024*1024;
+    } else if(!strcmp(msgBufSizeComboBoxText,"32 Mb")) {
+        msgBufSize = 32*1024*1024;
+    } else if(!strcmp(msgBufSizeComboBoxText,"64 Mb")) {
+        msgBufSize = 64*1024*1024;
+    } else if(!strcmp(msgBufSizeComboBoxText,"128 Mb")) {
+        msgBufSize = 128*1024*1024;
+    } else if(!strcmp(msgBufSizeComboBoxText,"256 Mb")) {
+        msgBufSize = 256*1024*1024;
+    } else if(!strcmp(msgBufSizeComboBoxText,"512 Mb")) {
+        msgBufSize = 512*1024*1024;
+    } else if(!strcmp(msgBufSizeComboBoxText,"1 Gb")) {
+        msgBufSize = 1024*1024*1024;
+    } else if(!strcmp(msgBufSizeComboBoxText,"2 Gb")) {
+        msgBufSize = 2*1024*1024;
+    } else if(!strcmp(msgBufSizeComboBoxText,"4 Gb")) {
+        msgBufSize = 4*1024*1024;
+    } else if(!strcmp(msgBufSizeComboBoxText,"8 Gb")) {
+        msgBufSize = 8*1024*1024;
+    } else {
+        msgBufSize = 1*1024*1024;
+    }
+    
+    if(error != TRUE) {
         action = 'e';
         strcpy(statusMessage,"Starting encryption...");
         workThread();
@@ -423,11 +777,65 @@ void on_encryptButton_clicked(GtkWidget *wid, gpointer ptr)
 
 void on_decryptButton_clicked(GtkWidget *wid, gpointer ptr)
 {
+    keyFileEntryEnable();
+    otpFileEntryEnable();
+    
+    gboolean error = FALSE;
+    
     inputFilePath = gtk_entry_get_text (GTK_ENTRY (inputFileNameBox));
     outputFilePath = gtk_entry_get_text (GTK_ENTRY (outputFileNameBox));
-    
     passWord = gtk_entry_get_text (GTK_ENTRY (passwordBox));
     verificationPass = gtk_entry_get_text (GTK_ENTRY (passwordVerificationBox));
+    keyFilePath = gtk_entry_get_text (GTK_ENTRY (keyFileNameBox));
+    otpFilePath = gtk_entry_get_text (GTK_ENTRY (otpFileNameBox));
+    keySizeComboBoxText = gtk_combo_box_text_get_active_text (GTK_COMBO_BOX_TEXT (keySizeComboBox));
+    macBufSizeComboBoxText = gtk_combo_box_text_get_active_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox));
+    msgBufSizeComboBoxText = gtk_combo_box_text_get_active_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox));
+    
+    if(strlen(inputFilePath)) {
+        optSt.inputFileGiven = true;
+    } else {
+        strcpy(statusMessage,"Need input file...");
+        error = TRUE;
+    }
+    
+    if(strlen(outputFilePath)) {
+        optSt.outputFileGiven = true;
+    } else {
+        strcpy(statusMessage,"Need output file...");
+        error = TRUE;
+    }
+    
+    if(strlen(passWord)) {
+        optSt.passWordGiven = true;
+    } else {
+        optSt.passWordGiven = false;
+    }
+    
+    if(strlen(keyFilePath)) {
+        optSt.keyFileGiven = true;
+        yaxaSaltSize = HMAC_KEY_SIZE;
+        strcpy(keyFileName,keyFilePath);
+        keyBufSize = getFileSize(keyFileName);
+    } else {
+        optSt.keyFileGiven = false;
+    }
+    
+    if(strlen(otpFilePath)) {
+        optSt.oneTimePad = true;
+        yaxaSaltSize = 0;
+        strcpy(otpInFileName,otpFilePath);
+        snprintf(otpOutFileName, NAME_MAX, "%s", otpFilePath);
+        sprintf(otpOutFileName,"%s.pad", outputFilePath);
+    } else {
+        optSt.oneTimePad = false;
+    }
+    
+    if((optSt.passWordGiven && optSt.keyFileGiven) || (optSt.passWordGiven && optSt.oneTimePad)) {
+        yaxaSaltSize = HMAC_KEY_SIZE;
+    } else if (optSt.oneTimePad || optSt.keyFileGiven) {
+        yaxaSaltSize = 0;
+    }
     
     snprintf(userPass,MAX_PASS_SIZE,"%s",passWord);
     
@@ -441,9 +849,132 @@ void on_decryptButton_clicked(GtkWidget *wid, gpointer ptr)
         gtk_entry_set_text(GTK_ENTRY (passwordVerificationBox), verificationPass);
     }
     
-    action = 'd';
-    strcpy(statusMessage,"Starting decryption...");
-    workThread();
+    if(optSt.keyFileGiven && optSt.oneTimePad) {
+        strcpy(statusMessage,"Can only use keyfile OR one-time-pad");
+        error = TRUE;
+    }
+    
+    if(!strcmp(keySizeComboBoxText,"1 Mb")) {
+        keyBufSize = 1024*1024;
+        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
+    } else if(!strcmp(keySizeComboBoxText,"2 Mb")) {
+        keyBufSize = 2*1024*1024;
+        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
+    } else if(!strcmp(keySizeComboBoxText,"4 Mb")) {
+        keyBufSize = 4*1024*1024;
+        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
+    } else if(!strcmp(keySizeComboBoxText,"8 Mb")) {
+        keyBufSize = 8*1024*1024;
+        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
+    } else if(!strcmp(keySizeComboBoxText,"16 Mb")) {
+        keyBufSize = 16*1024*1024;
+        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
+    } else if(!strcmp(keySizeComboBoxText,"32 Mb")) {
+        keyBufSize = 32*1024*1024;
+        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
+    } else if(!strcmp(keySizeComboBoxText,"64 Mb")) {
+        keyBufSize = 64*1024*1024;
+        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
+    } else if(!strcmp(keySizeComboBoxText,"128 Mb")) {
+        keyBufSize = 128*1024*1024;
+        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
+    } else if(!strcmp(keySizeComboBoxText,"256 Mb")) {
+        keyBufSize = 256*1024*1024;
+        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
+    } else if(!strcmp(keySizeComboBoxText,"512 Mb")) {
+        keyBufSize = 512*1024*1024;
+        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
+        
+    } else if(!strcmp(keySizeComboBoxText,"1 Gb")) {
+        keyBufSize = 1024*1024*1024;
+        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
+        
+    } else if(!strcmp(keySizeComboBoxText,"2 Gb")) {
+        keyBufSize = 2*1024*1024;
+        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
+        
+    } else if(!strcmp(keySizeComboBoxText,"4 Gb")) {
+        keyBufSize = 4*1024*1024;
+        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
+        
+    } else if(!strcmp(keySizeComboBoxText,"8 Gb")) {
+        keyBufSize = 8*1024*1024;;
+        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
+        
+    } else {
+        keyBufSize = 32*1024*1024;
+        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
+    }
+    
+    if(!strcmp(macBufSizeComboBoxText,"1 Mb")) {
+        genHmacBufSize = 1024*1024;
+    } else if(!strcmp(macBufSizeComboBoxText,"2 Mb")) {
+        genHmacBufSize = 2*1024*1024;
+    } else if(!strcmp(macBufSizeComboBoxText,"4 Mb")) {
+        genHmacBufSize = 4*1024*1024;
+    } else if(!strcmp(macBufSizeComboBoxText,"8 Mb")) {
+        genHmacBufSize = 8*1024*1024;
+    } else if(!strcmp(macBufSizeComboBoxText,"16 Mb")) {
+        genHmacBufSize = 16*1024*1024;
+    } else if(!strcmp(macBufSizeComboBoxText,"32 Mb")) {
+        genHmacBufSize = 32*1024*1024;
+    } else if(!strcmp(macBufSizeComboBoxText,"64 Mb")) {
+        genHmacBufSize = 64*1024*1024;
+    } else if(!strcmp(macBufSizeComboBoxText,"128 Mb")) {
+        genHmacBufSize = 128*1024*1024;
+    } else if(!strcmp(macBufSizeComboBoxText,"256 Mb")) {
+        genHmacBufSize = 256*1024*1024;
+    } else if(!strcmp(macBufSizeComboBoxText,"512 Mb")) {
+        genHmacBufSize = 512*1024*1024;
+    } else if(!strcmp(macBufSizeComboBoxText,"1 Gb")) {
+        genHmacBufSize = 1024*1024*1024;
+    } else if(!strcmp(macBufSizeComboBoxText,"2 Gb")) {
+        genHmacBufSize = 2*1024*1024;
+    } else if(!strcmp(macBufSizeComboBoxText,"4 Gb")) {
+        genHmacBufSize = 4*1024*1024;
+    } else if(!strcmp(macBufSizeComboBoxText,"8 Gb")) {
+        genHmacBufSize = 8*1024*1024;
+    } else {
+        genHmacBufSize = 1*1024*1024;
+    }
+    
+    if(!strcmp(msgBufSizeComboBoxText,"1 Mb")) {
+        msgBufSize = 1024*1024;
+    } else if(!strcmp(msgBufSizeComboBoxText,"2 Mb")) {
+        msgBufSize = 2*1024*1024;
+    } else if(!strcmp(msgBufSizeComboBoxText,"4 Mb")) {
+        msgBufSize = 4*1024*1024;
+    } else if(!strcmp(msgBufSizeComboBoxText,"8 Mb")) {
+        msgBufSize = 8*1024*1024;
+    } else if(!strcmp(msgBufSizeComboBoxText,"16 Mb")) {
+        msgBufSize = 16*1024*1024;
+    } else if(!strcmp(msgBufSizeComboBoxText,"32 Mb")) {
+        msgBufSize = 32*1024*1024;
+    } else if(!strcmp(msgBufSizeComboBoxText,"64 Mb")) {
+        msgBufSize = 64*1024*1024;
+    } else if(!strcmp(msgBufSizeComboBoxText,"128 Mb")) {
+        msgBufSize = 128*1024*1024;
+    } else if(!strcmp(msgBufSizeComboBoxText,"256 Mb")) {
+        msgBufSize = 256*1024*1024;
+    } else if(!strcmp(msgBufSizeComboBoxText,"512 Mb")) {
+        msgBufSize = 512*1024*1024;
+    } else if(!strcmp(msgBufSizeComboBoxText,"1 Gb")) {
+        msgBufSize = 1024*1024*1024;
+    } else if(!strcmp(msgBufSizeComboBoxText,"2 Gb")) {
+        msgBufSize = 2*1024*1024;
+    } else if(!strcmp(msgBufSizeComboBoxText,"4 Gb")) {
+        msgBufSize = 4*1024*1024;
+    } else if(!strcmp(msgBufSizeComboBoxText,"8 Gb")) {
+        msgBufSize = 8*1024*1024;
+    } else {
+        msgBufSize = 1*1024*1024;
+    }
+    
+    if(error != TRUE) {
+        action = 'd';
+        strcpy(statusMessage,"Starting encryption...");
+        workThread();
+    }
 }
 
 static void inputFileSelect (GtkWidget *wid, gpointer ptr)
@@ -500,8 +1031,91 @@ static void outputFileSelect (GtkWidget *wid, gpointer ptr)
     gtk_widget_destroy (dialog);
 }
 
+static void keyFileSelect (GtkWidget *wid, gpointer ptr)
+{
+    GtkWidget *dialog;
+    GtkFileChooserAction action = GTK_FILE_CHOOSER_ACTION_OPEN;
+    gint res;
+    char *fileName;
+    
+    dialog = gtk_file_chooser_dialog_new ("Open File",
+                                          GTK_WINDOW (ptr),
+                                          action,
+                                          "Cancel",
+                                          GTK_RESPONSE_CANCEL,
+                                          "Open",
+                                          GTK_RESPONSE_ACCEPT,
+                                          NULL);
+    
+    res = gtk_dialog_run (GTK_DIALOG (dialog));
+    if (res == GTK_RESPONSE_ACCEPT)
+      {
+        GtkFileChooser *chooser = GTK_FILE_CHOOSER (dialog);
+        fileName = gtk_file_chooser_get_filename (chooser);
+        gtk_entry_set_text(GTK_ENTRY (keyFileNameBox), fileName);
+      }
+    
+    gtk_widget_destroy (dialog);
+}
+
+static void otpFileSelect (GtkWidget *wid, gpointer ptr)
+{
+    GtkWidget *dialog;
+    GtkFileChooserAction action = GTK_FILE_CHOOSER_ACTION_OPEN;
+    gint res;
+    char *fileName;
+    
+    dialog = gtk_file_chooser_dialog_new ("Open File",
+                                          GTK_WINDOW (ptr),
+                                          action,
+                                          "Cancel",
+                                          GTK_RESPONSE_CANCEL,
+                                          "Open",
+                                          GTK_RESPONSE_ACCEPT,
+                                          NULL);
+    
+    res = gtk_dialog_run (GTK_DIALOG (dialog));
+    if (res == GTK_RESPONSE_ACCEPT)
+      {
+        GtkFileChooser *chooser = GTK_FILE_CHOOSER (dialog);
+        fileName = gtk_file_chooser_get_filename (chooser);
+        gtk_entry_set_text(GTK_ENTRY (otpFileNameBox), fileName);
+      }
+    
+    gtk_widget_destroy (dialog);
+}
+
 void passVisibilityToggle (GtkWidget *wid, gpointer ptr)
 {
     gtk_entry_set_visibility(GTK_ENTRY (passwordBox), gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (wid)));
     gtk_entry_set_visibility(GTK_ENTRY (passwordVerificationBox), gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (wid)));
 }
+
+void otpFileEntryDisable (void)
+{
+    gtk_editable_set_editable(GTK_EDITABLE(otpFileNameBox), FALSE);
+    gtk_widget_set_sensitive (GTK_WIDGET(otpFileButton), FALSE);
+
+}
+
+void keyFileEntryDisable (void)
+{
+    gtk_editable_set_editable(GTK_EDITABLE(keyFileNameBox), FALSE);
+    gtk_widget_set_sensitive (GTK_WIDGET(keyFileButton), FALSE);
+
+}
+
+void otpFileEntryEnable (void)
+{
+    gtk_editable_set_editable(GTK_EDITABLE(otpFileNameBox), TRUE);
+    gtk_widget_set_sensitive (GTK_WIDGET(otpFileButton), TRUE);
+
+}
+
+void keyFileEntryEnable (void)
+{
+    gtk_editable_set_editable(GTK_EDITABLE(keyFileNameBox), TRUE);
+    gtk_widget_set_sensitive (GTK_WIDGET(keyFileButton), TRUE);
+
+}
+

@@ -153,12 +153,13 @@ struct optionsStruct *optSt
             {"input-file",     required_argument, 0,'i' },
             {"output-file",    required_argument, 0,'o' },
             {"key-file",       required_argument, 0,'k' },
+            {"otp-file",       required_argument, 0,'O' },
             {"password",       required_argument, 0,'p' },
             {"sizes",          required_argument, 0,'s' },
             {0,                0,                 0, 0  }
         };
         
-        c = getopt_long(argc, argv, "edi:o:k:p:s:",
+        c = getopt_long(argc, argv, "edi:o:k:O:p:s:",
                         long_options, &option_index);
        if (c == -1)
            break;
@@ -201,6 +202,18 @@ struct optionsStruct *optSt
                 snprintf(keyFileName, NAME_MAX, "%s", optarg);
                 keyBufSize = getFileSize(keyFileName);
                 yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
+            }
+        break;
+        case 'O':
+            if (optarg[0] == '-' && strlen(optarg) == 2) {
+                fprintf(stderr, "Option -O requires an argument\n");
+                errflg++;
+                break;
+            } else {
+                optSt->oneTimePad = true;
+                snprintf(otpInFileName, NAME_MAX, "%s", optarg);
+                sprintf(otpOutFileName,"%s.pad", outputFileName);
+                
             }
         break;
         case 'p':
@@ -271,7 +284,7 @@ struct optionsStruct *optSt
                         
                         /*Divide the amount specified by the size of cryptint_t since it will 
                          * be multipled later*/
-                        msgBufSize = (atol(value) * getBufSizeMultiple(value)) / sizeof(cryptint_t);
+                        msgBufSize = (atol(value) * getBufSizeMultiple(value));
                     break;
                     default:
                         fprintf(stderr, "No match found for token: /%s/\n", value);
@@ -295,8 +308,8 @@ struct optionsStruct *optSt
         fprintf(stderr, "-d and -e are mutually exlusive. Can only encrypt or decrypt, not both.\n");
         errflg++;
     }
-    if(optSt->passWordGiven && optSt->keyFileGiven) {
-        fprintf(stderr, "-p and -k are mutually exlusive. Can only use a password or keyfile, not both.\n");
+    if(optSt->keyFileGiven && optSt->oneTimePad) {
+        fprintf(stderr, "-k and -O are mutually exlusive. Can only use a keyfileone-time-pad, not both.\n");
         errflg++;
     }
     if(!optSt->encrypt && !optSt->decrypt) {
@@ -311,6 +324,12 @@ struct optionsStruct *optSt
     if (errflg) {
         printSyntax(binName);
         exit(EXIT_FAILURE);
+    }
+    
+    if((optSt->passWordGiven && optSt->keyFileGiven) || (optSt->passWordGiven && optSt->oneTimePad)) {
+        yaxaSaltSize = HMAC_KEY_SIZE;
+    } else if (optSt->oneTimePad || optSt->keyFileGiven) {
+        yaxaSaltSize = 0;
     }
 }
 
@@ -343,6 +362,9 @@ int main(int argc, char *argv[])
         printFileError(outputFileName, errno);
         exit(EXIT_FAILURE);
     }
+    
+    FILE *otpInFile;
+    FILE *otpOutFile;
 
     cryptint_t fileSize;
     
@@ -351,7 +373,7 @@ int main(int argc, char *argv[])
 
     if (optSt.encrypt) {
 
-        if (!optSt.passWordGiven && !optSt.keyFileGiven) {
+        if (!optSt.passWordGiven && !optSt.keyFileGiven && !optSt.oneTimePad) {
             getPass("Enter password to encrypt with: ",userPass);
 
             /*Get the password again to verify it wasn't misspelled*/
@@ -360,6 +382,8 @@ int main(int argc, char *argv[])
                 printf("\nPasswords do not match.  Nothing done.\n\n");
                 exit(EXIT_FAILURE);
             }
+            
+            optSt.passWordGiven = true;
         }
         
         if(optSt.keyFileGiven) {
@@ -371,8 +395,44 @@ int main(int argc, char *argv[])
                 exit(EXIT_FAILURE);
             }
             
-            fread(yaxaKey,1,sizeof(*yaxaKey) * keyBufSize,keyFile);
-            fclose(keyFile);
+            if(!optSt.passWordGiven) {
+                fread(yaxaKey,1,sizeof(*yaxaKey) * keyBufSize,keyFile);
+                fclose(keyFile);
+            } else {
+                keyBufSize += HMAC_KEY_SIZE;
+                free(yaxaKey);
+                yaxaKey = calloc(keyBufSize, sizeof(*yaxaKey));
+                if (yaxaKey == NULL) {
+                    printSysError(errno);
+                    printError("Could not allocate yaxaKey buffer");
+                    exit(EXIT_FAILURE);
+                }
+                genYaxaKey();
+                fread(yaxaKey + HMAC_KEY_SIZE,1,sizeof(*yaxaKey) * (keyBufSize - HMAC_KEY_SIZE),keyFile);
+                fclose(keyFile);
+            }
+            
+        } else if(optSt.oneTimePad) {
+            
+            keyBufSize = HMAC_KEY_SIZE;
+            
+            genYaxaSalt();
+            
+            otpInFile = fopen(otpInFileName,"rb");
+            if (otpInFile == NULL) {
+                printFileError(otpInFileName, errno);
+                exit(EXIT_FAILURE);
+            }
+            
+            otpOutFile = fopen(otpOutFileName,"wb");
+            
+            if(optSt.passWordGiven) {
+                genYaxaKey();
+            } else {
+                fread(yaxaKey,sizeof(*yaxaKey),HMAC_KEY_SIZE,otpInFile);
+                fwrite(yaxaKey,sizeof(*yaxaKey),HMAC_KEY_SIZE,otpOutFile);
+            }
+            
         } else {
 
             genYaxaSalt();
@@ -403,18 +463,16 @@ int main(int argc, char *argv[])
         }
 
         /*Encrypt file and write it out*/
-        doCrypt(inFile, outFile, fileSize);
+        if(optSt.oneTimePad) {
+            doCrypt(inFile, outFile, fileSize, otpInFile, otpOutFile);
+        } else {
+            doCrypt(inFile, outFile, fileSize, NULL, NULL);
+        }
 
         if(fclose(inFile) != 0) {
             printSysError(errno);
             exit(EXIT_FAILURE);
         }
-
-        /*Now get new filesize and reset flie position to beginning*/
-        fileSize = ftell(outFile);
-        rewind(outFile);
-
-        genHMAC(outFile, fileSize);
 
         OPENSSL_cleanse(hmacKey, HMAC_KEY_SIZE);
 
@@ -431,7 +489,7 @@ int main(int argc, char *argv[])
 
     } else if (optSt.decrypt) {
 
-        if (!optSt.passWordGiven && !optSt.keyFileGiven)
+        if (!optSt.passWordGiven && !optSt.keyFileGiven && !optSt.oneTimePad)
             getPass("Enter password to decrypt with: ",userPass);
             
         if (yaxaSaltSize > getFileSize(inputFileName)) { 
@@ -453,8 +511,38 @@ int main(int argc, char *argv[])
 
         if(optSt.keyFileGiven) {
             FILE *keyFile = fopen(keyFileName,"rb");
-            fread(yaxaKey,1,sizeof(*yaxaKey) * keyBufSize,keyFile);
-            fclose(keyFile);
+            if(!optSt.passWordGiven) {
+                fread(yaxaKey,1,sizeof(*yaxaKey) * keyBufSize,keyFile);
+                fclose(keyFile);
+            } else {
+                keyBufSize += HMAC_KEY_SIZE;
+                free(yaxaKey);
+                yaxaKey = calloc(keyBufSize, sizeof(*yaxaKey));
+                if (yaxaKey == NULL) {
+                    printSysError(errno);
+                    printError("Could not allocate yaxaKey buffer");
+                    exit(EXIT_FAILURE);
+                }
+                genYaxaKey();
+                fread(yaxaKey + HMAC_KEY_SIZE,1,sizeof(*yaxaKey) * (keyBufSize - HMAC_KEY_SIZE),keyFile);
+                fclose(keyFile);
+            }
+        } else if(optSt.oneTimePad) {
+            
+            keyBufSize = HMAC_KEY_SIZE;
+            
+            otpInFile = fopen(otpInFileName,"rb");
+            if (otpInFile == NULL) {
+                printFileError(otpInFileName, errno);
+                exit(EXIT_FAILURE);
+            }
+            
+            if(optSt.passWordGiven) {
+                genYaxaKey();
+            } else {
+                fread(yaxaKey,sizeof(*yaxaKey),HMAC_KEY_SIZE,otpInFile);
+            }
+                        
         } else {
             genYaxaKey();
         }
@@ -503,8 +591,12 @@ int main(int argc, char *argv[])
         /*Reset file posiiton to beginning of cipher-text after the salt and pass tag*/
         fseek(inFile, yaxaSaltSize + PASS_KEYED_HASH_SIZE, SEEK_SET);
 
-        /*Now decrypt the cipher-text, disocounting the size of the MAC*/
-        doCrypt(inFile, outFile, fileSize - MAC_SIZE);
+        /*Now decrypt the cipher-text, disocounting the size of the MAC*/        
+        if(optSt.oneTimePad) {
+            doCrypt(inFile, outFile, fileSize - MAC_SIZE, otpInFile, NULL);
+        } else {
+            doCrypt(inFile, outFile, fileSize - MAC_SIZE, NULL, NULL);
+        }
 
         if(fclose(outFile) != 0) {
             printSysError(errno);

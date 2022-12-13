@@ -6,6 +6,7 @@ struct optionsStruct {
     bool inputFileGiven;
     bool outputFileGiven;
     bool keyFileGiven;
+    bool oneTimePad;
     bool passWordGiven;
     bool keyBufSizeGiven;
     bool macBufSizeGiven;
@@ -37,6 +38,8 @@ uint32_t *HMACLengthPtr = NULL;
 char inputFileName[NAME_MAX];
 char outputFileName[NAME_MAX];
 char keyFileName[NAME_MAX];
+char otpInFileName[NAME_MAX];
+char otpOutFileName[NAME_MAX];
 
 size_t keyBufSize = YAXA_KEYBUF_SIZE;
 size_t genHmacBufSize = 1024 * 1024;
