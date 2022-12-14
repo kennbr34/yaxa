@@ -316,8 +316,13 @@ struct optionsStruct *optSt
         fprintf(stderr, "Must specify to either encrypt or decrypt (-e or -d)\n");
         errflg++;
     }
-    if( !optSt->inputFileGiven && !optSt->outputFileGiven) {
+    if(!optSt->inputFileGiven || !optSt->outputFileGiven) {
         fprintf(stderr, "Must specify an input and output file\n");
+        errflg++;
+    }
+    
+    if(!strcmp(inputFileName,outputFileName)) {
+        fprintf(stderr, "Input file and output file are the same\n");
         errflg++;
     }
     

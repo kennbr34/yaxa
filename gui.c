@@ -612,6 +612,11 @@ void on_encryptButton_clicked(GtkWidget *wid, gpointer ptr)
         error = TRUE;
     }
     
+    if(!strcmp(inputFilePath,outputFilePath)) {
+        strcpy(statusMessage,"Input and output file are the same...");
+        error = TRUE;
+    }
+    
     if(strlen(passWord)) {
         optSt.passWordGiven = true;
     } else {
@@ -810,6 +815,11 @@ void on_decryptButton_clicked(GtkWidget *wid, gpointer ptr)
         optSt.passWordGiven = true;
     } else {
         optSt.passWordGiven = false;
+    }
+    
+    if(!strcmp(inputFilePath,outputFilePath)) {
+        strcpy(statusMessage,"Input and output file are the same...");
+        error = TRUE;
     }
     
     if(strlen(keyFilePath)) {
