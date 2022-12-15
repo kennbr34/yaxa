@@ -349,22 +349,16 @@ int workThread()
                 }
                 fclose(keyFile);
             } else {
-                keyBufSize += HMAC_KEY_SIZE;
-                free(yaxaKey);
-                yaxaKey = calloc(keyBufSize, sizeof(*yaxaKey));
-                if (yaxaKey == NULL) {
-                    printSysError(errno);
-                    printError("Could not allocate yaxaKey buffer");
-                    exit(EXIT_FAILURE);
-                }
-                strcpy(statusMessage,"Generating encryption key...");
-                *overallProgressFraction = .2;
-                genYaxaKey();
-                if(freadWErrCheck(yaxaKey + HMAC_KEY_SIZE,1,sizeof(*yaxaKey) * (keyBufSize - HMAC_KEY_SIZE),keyFile) != 0) {
+                if(freadWErrCheck(yaxaKey,1,sizeof(*yaxaKey) * (keyFileSize),keyFile) != 0) {
                     printSysError(returnVal);
                     exit(EXIT_FAILURE);
                 }
                 fclose(keyFile);
+                keyBufSize = HMAC_KEY_SIZE;
+                strcpy(statusMessage,"Generating encryption key...");
+                *overallProgressFraction = .2;
+                genYaxaKey();
+                keyBufSize = keyFileSize;
             }
             
         } else if(optSt.oneTimePad) {
@@ -510,22 +504,16 @@ int workThread()
                 }
                 fclose(keyFile);
             } else {
-                keyBufSize += HMAC_KEY_SIZE;
-                free(yaxaKey);
-                yaxaKey = calloc(keyBufSize, sizeof(*yaxaKey));
-                if (yaxaKey == NULL) {
-                    printSysError(errno);
-                    printError("Could not allocate yaxaKey buffer");
-                    exit(EXIT_FAILURE);
-                }
-                strcpy(statusMessage,"Generating decryption key...");
-                *overallProgressFraction = .3;
-                genYaxaKey();
-                if(freadWErrCheck(yaxaKey + HMAC_KEY_SIZE,1,sizeof(*yaxaKey) * (keyBufSize - HMAC_KEY_SIZE),keyFile) != 0) {
+                if(freadWErrCheck(yaxaKey,1,sizeof(*yaxaKey) * (keyFileSize),keyFile) != 0) {
                     printSysError(returnVal);
                     exit(EXIT_FAILURE);
                 }
                 fclose(keyFile);
+                keyBufSize = HMAC_KEY_SIZE;
+                strcpy(statusMessage,"Generating encryption key...");
+                *overallProgressFraction = .2;
+                genYaxaKey();
+                keyBufSize = keyFileSize;
             }
         } else if(optSt.oneTimePad) {
             
@@ -702,6 +690,19 @@ void on_encryptButton_clicked(GtkWidget *wid, gpointer ptr)
         error = TRUE;
     }
     
+    if(strcmp(keySizeComboBoxText,"32 Mb") != 0) {
+        keyBufSize = atol(keySizeComboBoxText) * sizeof(uint8_t) * getBufSizeMultiple((char *)keySizeComboBoxText);
+        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
+    }
+    
+    if(strcmp(macBufSizeComboBoxText,"1 Mb") != 0) {
+        genHmacBufSize = atol(macBufSizeComboBoxText) * sizeof(uint8_t) * getBufSizeMultiple((char *)macBufSizeComboBoxText);
+    }
+    
+    if(strcmp(msgBufSizeComboBoxText,"1 Mb") != 0) {
+         msgBufSize = atol(msgBufSizeComboBoxText) * sizeof(uint8_t) * getBufSizeMultiple((char *)msgBufSizeComboBoxText);
+    }
+    
     if(strlen(passWord)) {
         optSt.passWordGiven = true;
     } else {
@@ -710,9 +711,10 @@ void on_encryptButton_clicked(GtkWidget *wid, gpointer ptr)
     
     if(strlen(keyFilePath)) {
         optSt.keyFileGiven = true;
-        yaxaSaltSize = HMAC_KEY_SIZE;
         strcpy(keyFileName,keyFilePath);
-        keyBufSize = getFileSize(keyFileName);
+        keyFileSize = getFileSize(keyFileName);
+        keyBufSize = keyFileSize;
+        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
     } else {
         optSt.keyFileGiven = false;
     }
@@ -728,7 +730,7 @@ void on_encryptButton_clicked(GtkWidget *wid, gpointer ptr)
     }
     
     if((optSt.passWordGiven && optSt.keyFileGiven) || (optSt.passWordGiven && optSt.oneTimePad)) {
-        yaxaSaltSize = HMAC_KEY_SIZE;
+        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
     } else if (optSt.oneTimePad || optSt.keyFileGiven) {
         yaxaSaltSize = 0;
     }
@@ -757,19 +759,6 @@ void on_encryptButton_clicked(GtkWidget *wid, gpointer ptr)
     if(optSt.keyFileGiven && optSt.oneTimePad) {
         strcpy(statusMessage,"Can only use keyfile OR one-time-pad");
         error = TRUE;
-    }
-    
-    if(strcmp(keySizeComboBoxText,"32 Mb") != 0) {
-        keyBufSize = atol(keySizeComboBoxText) * sizeof(uint8_t) * getBufSizeMultiple((char *)keySizeComboBoxText);
-        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
-    }
-    
-    if(strcmp(macBufSizeComboBoxText,"1 Mb") != 0) {
-        genHmacBufSize = atol(macBufSizeComboBoxText) * sizeof(uint8_t) * getBufSizeMultiple((char *)macBufSizeComboBoxText);
-    }
-    
-    if(strcmp(msgBufSizeComboBoxText,"1 Mb") != 0) {
-         msgBufSize = atol(msgBufSizeComboBoxText) * sizeof(uint8_t) * getBufSizeMultiple((char *)msgBufSizeComboBoxText);
     }
     
     if(error != TRUE) {
@@ -810,6 +799,19 @@ void on_decryptButton_clicked(GtkWidget *wid, gpointer ptr)
         error = TRUE;
     }
     
+    if(strcmp(keySizeComboBoxText,"32 Mb") != 0) {
+        keyBufSize = atol(keySizeComboBoxText) * sizeof(uint8_t) * getBufSizeMultiple((char *)keySizeComboBoxText);
+        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
+    }
+    
+    if(strcmp(macBufSizeComboBoxText,"1 Mb") != 0) {
+        genHmacBufSize = atol(macBufSizeComboBoxText) * sizeof(uint8_t) * getBufSizeMultiple((char *)macBufSizeComboBoxText);
+    }
+    
+    if(strcmp(msgBufSizeComboBoxText,"1 Mb") != 0) {
+         msgBufSize = atol(msgBufSizeComboBoxText) * sizeof(uint8_t) * getBufSizeMultiple((char *)msgBufSizeComboBoxText);
+    }
+    
     if(strlen(passWord)) {
         optSt.passWordGiven = true;
     } else {
@@ -823,9 +825,10 @@ void on_decryptButton_clicked(GtkWidget *wid, gpointer ptr)
     
     if(strlen(keyFilePath)) {
         optSt.keyFileGiven = true;
-        yaxaSaltSize = HMAC_KEY_SIZE;
         strcpy(keyFileName,keyFilePath);
-        keyBufSize = getFileSize(keyFileName);
+        keyFileSize = getFileSize(keyFileName);
+        keyBufSize = keyFileSize;
+        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
     } else {
         optSt.keyFileGiven = false;
     }
@@ -841,7 +844,7 @@ void on_decryptButton_clicked(GtkWidget *wid, gpointer ptr)
     }
     
     if((optSt.passWordGiven && optSt.keyFileGiven) || (optSt.passWordGiven && optSt.oneTimePad)) {
-        yaxaSaltSize = HMAC_KEY_SIZE;
+        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
     } else if (optSt.oneTimePad || optSt.keyFileGiven) {
         yaxaSaltSize = 0;
     }
@@ -863,18 +866,7 @@ void on_decryptButton_clicked(GtkWidget *wid, gpointer ptr)
         error = TRUE;
     }
     
-    if(strcmp(keySizeComboBoxText,"32 Mb") != 0) {
-        keyBufSize = atol(keySizeComboBoxText) * sizeof(uint8_t) * getBufSizeMultiple((char *)keySizeComboBoxText);
-        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
-    }
-    
-    if(strcmp(macBufSizeComboBoxText,"1 Mb") != 0) {
-        genHmacBufSize = atol(macBufSizeComboBoxText) * sizeof(uint8_t) * getBufSizeMultiple((char *)macBufSizeComboBoxText);
-    }
-    
-    if(strcmp(msgBufSizeComboBoxText,"1 Mb") != 0) {
-         msgBufSize = atol(msgBufSizeComboBoxText) * sizeof(uint8_t) * getBufSizeMultiple((char *)msgBufSizeComboBoxText);
-    }
+    printf("yaxaSaltSize = %i\n", yaxaSaltSize);
     
     if(error != TRUE) {
         action = 'd';

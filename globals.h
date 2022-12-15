@@ -45,6 +45,7 @@ size_t keyBufSize = YAXA_KEYBUF_SIZE;
 size_t genHmacBufSize = 1024 * 1024;
 size_t msgBufSize = 1024 * 1024;
 size_t yaxaSaltSize = YAXA_KEYBUF_SIZE / YAXA_KEY_CHUNK_SIZE;
+size_t keyFileSize;
 
 /*Iterator for indexing yaxaKey array*/
 uint32_t k = 0;

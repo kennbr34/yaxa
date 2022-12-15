@@ -165,7 +165,8 @@ struct optionsStruct *optSt
             } else {
                 optSt->keyFileGiven = true;
                 snprintf(keyFileName, NAME_MAX, "%s", optarg);
-                keyBufSize = getFileSize(keyFileName);
+                keyFileSize = getFileSize(keyFileName);
+                keyBufSize = keyFileSize;
                 yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
             }
         break;
@@ -297,7 +298,7 @@ struct optionsStruct *optSt
     }
     
     if((optSt->passWordGiven && optSt->keyFileGiven) || (optSt->passWordGiven && optSt->oneTimePad)) {
-        yaxaSaltSize = HMAC_KEY_SIZE;
+        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
     } else if (optSt->oneTimePad || optSt->keyFileGiven) {
         yaxaSaltSize = 0;
     }
@@ -357,6 +358,7 @@ int main(int argc, char *argv[])
         }
         
         if(optSt.keyFileGiven) {
+            
             genYaxaSalt();
             
             FILE *keyFile = fopen(keyFileName,"rb");
@@ -372,20 +374,14 @@ int main(int argc, char *argv[])
                 }
                 fclose(keyFile);
             } else {
-                keyBufSize += HMAC_KEY_SIZE;
-                free(yaxaKey);
-                yaxaKey = calloc(keyBufSize, sizeof(*yaxaKey));
-                if (yaxaKey == NULL) {
-                    printSysError(errno);
-                    printError("Could not allocate yaxaKey buffer");
-                    exit(EXIT_FAILURE);
-                }
-                genYaxaKey();
-                if(freadWErrCheck(yaxaKey + HMAC_KEY_SIZE,1,sizeof(*yaxaKey) * (keyBufSize - HMAC_KEY_SIZE),keyFile) != 0) {
+                if(freadWErrCheck(yaxaKey,1,sizeof(*yaxaKey) * (keyFileSize),keyFile) != 0) {
                     printSysError(returnVal);
                     exit(EXIT_FAILURE);
                 }
                 fclose(keyFile);
+                keyBufSize = HMAC_KEY_SIZE;
+                genYaxaKey();
+                keyBufSize = keyFileSize;
             }
             
         } else if(optSt.oneTimePad) {
@@ -500,20 +496,14 @@ int main(int argc, char *argv[])
                 }
                 fclose(keyFile);
             } else {
-                keyBufSize += HMAC_KEY_SIZE;
-                free(yaxaKey);
-                yaxaKey = calloc(keyBufSize, sizeof(*yaxaKey));
-                if (yaxaKey == NULL) {
-                    printSysError(errno);
-                    printError("Could not allocate yaxaKey buffer");
-                    exit(EXIT_FAILURE);
-                }
-                genYaxaKey();
-                if(freadWErrCheck(yaxaKey + HMAC_KEY_SIZE,1,sizeof(*yaxaKey) * (keyBufSize - HMAC_KEY_SIZE),keyFile) != 0) {
+                if(freadWErrCheck(yaxaKey,1,sizeof(*yaxaKey) * (keyFileSize),keyFile) != 0) {
                     printSysError(returnVal);
                     exit(EXIT_FAILURE);
                 }
                 fclose(keyFile);
+                keyBufSize = HMAC_KEY_SIZE;
+                genYaxaKey();
+                keyBufSize = keyFileSize;
             }
         } else if(optSt.oneTimePad) {
             
