@@ -865,9 +865,7 @@ void on_decryptButton_clicked(GtkWidget *wid, gpointer ptr)
         strcpy(statusMessage,"Can only use keyfile OR one-time-pad");
         error = TRUE;
     }
-    
-    printf("yaxaSaltSize = %i\n", yaxaSaltSize);
-    
+        
     if(error != TRUE) {
         action = 'd';
         strcpy(statusMessage,"Starting encryption...");
