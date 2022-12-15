@@ -109,6 +109,21 @@ int main(int argc, char *argv[])
     GtkWidget *keySizeLabel = gtk_label_new ("Key Size");
     keySizeComboBox = gtk_combo_box_text_new ();
     gtk_widget_set_tooltip_text (keySizeComboBox, "This controls the size of the key that will be derived from the password");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (keySizeComboBox), "16 bytes");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (keySizeComboBox), "32 bytes");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (keySizeComboBox), "64 bytes");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (keySizeComboBox), "128 bytes");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (keySizeComboBox), "256 bytes");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (keySizeComboBox), "512 bytes");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (keySizeComboBox), "2 Kb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (keySizeComboBox), "4 Kb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (keySizeComboBox), "8 Kb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (keySizeComboBox), "16 Kb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (keySizeComboBox), "32 Kb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (keySizeComboBox), "64 Kb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (keySizeComboBox), "128 Kb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (keySizeComboBox), "256 Kb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (keySizeComboBox), "512 Kb");
     gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (keySizeComboBox), "1 Mb");
     gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (keySizeComboBox), "2 Mb");
     gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (keySizeComboBox), "4 Mb");
@@ -119,7 +134,7 @@ int main(int argc, char *argv[])
     gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (keySizeComboBox), "128 Mb");
     gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (keySizeComboBox), "256 Mb");
     gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (keySizeComboBox), "512 Mb");
-    gtk_combo_box_set_active (GTK_COMBO_BOX (keySizeComboBox), 5);
+    gtk_combo_box_set_active (GTK_COMBO_BOX (keySizeComboBox), 20);
     
     GtkWidget *visibilityButton = gtk_check_button_new_with_label ("Show Password");
     gtk_widget_set_tooltip_text (visibilityButton, "Hint: Use this to avoid typos");
@@ -149,6 +164,26 @@ int main(int argc, char *argv[])
     GtkWidget *macBufSizeLabel = gtk_label_new ("Authentication Buffer Size");
     macBufSizeComboBox = gtk_combo_box_text_new ();
     gtk_widget_set_tooltip_text (macBufSizeComboBox, "This controls the size of the buffer used for authenticating data");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "1 byte");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "2 bytes");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "4 bytes");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "8 bytes");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "16 bytes");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "32 bytes");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "64 bytes");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "128 bytes");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "256 bytes");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "512 bytes");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "1 Kb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "2 Kb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "4 Kb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "8 Kb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "16 Kb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "32 Kb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "64 Kb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "128 Kb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "256 Kb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "512 Kb");
     gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "1 Mb");
     gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "2 Mb");
     gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "4 Mb");
@@ -163,11 +198,31 @@ int main(int argc, char *argv[])
     gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "2 Gb");
     gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "4 Gb");
     gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "8 Gb");
-    gtk_combo_box_set_active (GTK_COMBO_BOX (macBufSizeComboBox), 0);
+    gtk_combo_box_set_active (GTK_COMBO_BOX (macBufSizeComboBox), 20);
     
     GtkWidget *msgBufSizeLabel = gtk_label_new ("File Buffer Size");
     msgBufSizeComboBox = gtk_combo_box_text_new ();
     gtk_widget_set_tooltip_text (msgBufSizeComboBox, "This controls the size of the buffer used for encryption/decryption data");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "1 byte");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "2 bytes");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "4 bytes");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "8 bytes");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "16 bytes");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "32 bytes");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "64 bytes");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "128 bytes");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "256 bytes");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "512 bytes");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "1 Kb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "2 Kb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "4 Kb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "8 Kb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "16 Kb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "32 Kb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "64 Kb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "128 Kb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "256 Kb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "512 Kb");
     gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "1 Mb");
     gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "2 Mb");
     gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "4 Mb");
@@ -182,7 +237,7 @@ int main(int argc, char *argv[])
     gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "2 Gb");
     gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "4 Gb");
     gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "8 Gb");
-    gtk_combo_box_set_active (GTK_COMBO_BOX (msgBufSizeComboBox), 0);
+    gtk_combo_box_set_active (GTK_COMBO_BOX (msgBufSizeComboBox), 20);
     
     GtkWidget *encryptButton = gtk_button_new_with_label ("Encrypt");
     g_signal_connect (encryptButton, "clicked", G_CALLBACK (on_encryptButton_clicked), NULL);
@@ -265,8 +320,8 @@ int workThread()
         exit(EXIT_FAILURE);
     }
     
-    FILE *otpInFile;
-    FILE *otpOutFile;
+    FILE *otpInFile = NULL;
+    FILE *otpOutFile = NULL;
 
     cryptint_t fileSize;
     
@@ -288,7 +343,10 @@ int workThread()
             }
             
             if(!optSt.passWordGiven) {
-                fread(yaxaKey,1,sizeof(*yaxaKey) * keyBufSize,keyFile);
+                if(freadWErrCheck(yaxaKey,1,sizeof(*yaxaKey) * keyBufSize,keyFile) != 0) {
+                    printSysError(returnVal);
+                    exit(EXIT_FAILURE);
+                }
                 fclose(keyFile);
             } else {
                 keyBufSize += HMAC_KEY_SIZE;
@@ -302,7 +360,10 @@ int workThread()
                 strcpy(statusMessage,"Generating encryption key...");
                 *overallProgressFraction = .2;
                 genYaxaKey();
-                fread(yaxaKey + HMAC_KEY_SIZE,1,sizeof(*yaxaKey) * (keyBufSize - HMAC_KEY_SIZE),keyFile);
+                if(freadWErrCheck(yaxaKey + HMAC_KEY_SIZE,1,sizeof(*yaxaKey) * (keyBufSize - HMAC_KEY_SIZE),keyFile) != 0) {
+                    printSysError(returnVal);
+                    exit(EXIT_FAILURE);
+                }
                 fclose(keyFile);
             }
             
@@ -327,8 +388,14 @@ int workThread()
                 *overallProgressFraction = .2;
                 genYaxaKey();
             } else {
-                fread(yaxaKey,sizeof(*yaxaKey),HMAC_KEY_SIZE,otpInFile);
-                fwrite(yaxaKey,sizeof(*yaxaKey),HMAC_KEY_SIZE,otpOutFile);
+                if(freadWErrCheck(yaxaKey,sizeof(*yaxaKey),HMAC_KEY_SIZE,otpInFile) != 0) {
+                    printSysError(returnVal);
+                    exit(EXIT_FAILURE);
+                }
+                if(fwriteWErrCheck(yaxaKey,sizeof(*yaxaKey),HMAC_KEY_SIZE,otpOutFile) != 0) {
+                    printSysError(returnVal);
+                    exit(EXIT_FAILURE);
+                }
             }
             
         } else {
@@ -437,7 +504,10 @@ int workThread()
         if(optSt.keyFileGiven) {
             FILE *keyFile = fopen(keyFileName,"rb");
             if(!optSt.passWordGiven) {
-                fread(yaxaKey,1,sizeof(*yaxaKey) * keyBufSize,keyFile);
+                if(freadWErrCheck(yaxaKey,1,sizeof(*yaxaKey) * keyBufSize,keyFile) != 0) {
+                    printSysError(returnVal);
+                    exit(EXIT_FAILURE);
+                }
                 fclose(keyFile);
             } else {
                 keyBufSize += HMAC_KEY_SIZE;
@@ -451,7 +521,10 @@ int workThread()
                 strcpy(statusMessage,"Generating decryption key...");
                 *overallProgressFraction = .3;
                 genYaxaKey();
-                fread(yaxaKey + HMAC_KEY_SIZE,1,sizeof(*yaxaKey) * (keyBufSize - HMAC_KEY_SIZE),keyFile);
+                if(freadWErrCheck(yaxaKey + HMAC_KEY_SIZE,1,sizeof(*yaxaKey) * (keyBufSize - HMAC_KEY_SIZE),keyFile) != 0) {
+                    printSysError(returnVal);
+                    exit(EXIT_FAILURE);
+                }
                 fclose(keyFile);
             }
         } else if(optSt.oneTimePad) {
@@ -469,7 +542,10 @@ int workThread()
                 *overallProgressFraction = .3;
                 genYaxaKey();
             } else {
-                fread(yaxaKey,sizeof(*yaxaKey),HMAC_KEY_SIZE,otpInFile);
+                if(freadWErrCheck(yaxaKey,sizeof(*yaxaKey),HMAC_KEY_SIZE,otpInFile) != 0) {
+                    printSysError(returnVal);
+                    exit(EXIT_FAILURE);
+                }
             }
                         
         } else {
@@ -560,12 +636,16 @@ int workThread()
         
         exit(EXIT_SUCCESS);
     }
+    
+    return 0;
 }
 
 static gboolean updateStatus(gpointer user_data)
 {
     statusContextID = gtk_statusbar_get_context_id (GTK_STATUSBAR (statusBar), "Statusbar");
     gtk_statusbar_push (GTK_STATUSBAR (statusBar), GPOINTER_TO_INT (statusContextID), statusMessage);
+    
+    return TRUE;
 }
 
 static gboolean updateProgress(gpointer user_data)
@@ -573,6 +653,8 @@ static gboolean updateProgress(gpointer user_data)
     gtk_progress_bar_set_fraction (GTK_PROGRESS_BAR (progressBar), *progressFraction);
     if(*progressFraction > 1)
         *progressFraction = 0.0;
+        
+    return TRUE;
 }
 
 static gboolean updateOverallProgress(gpointer user_data)
@@ -580,7 +662,10 @@ static gboolean updateOverallProgress(gpointer user_data)
     gtk_progress_bar_set_fraction (GTK_PROGRESS_BAR (overallProgressBar), *overallProgressFraction);
     if(*overallProgressFraction > 1)
         *overallProgressFraction = 0.0;
+        
+    return TRUE;
 }
+
 void on_encryptButton_clicked(GtkWidget *wid, gpointer ptr)
 {
     keyFileEntryEnable();
@@ -674,103 +759,17 @@ void on_encryptButton_clicked(GtkWidget *wid, gpointer ptr)
         error = TRUE;
     }
     
-    if(!strcmp(keySizeComboBoxText,"1 Mb")) {
-        keyBufSize = 1024*1024;
-        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
-    } else if(!strcmp(keySizeComboBoxText,"2 Mb")) {
-        keyBufSize = 2*1024*1024;
-        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
-    } else if(!strcmp(keySizeComboBoxText,"4 Mb")) {
-        keyBufSize = 4*1024*1024;
-        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
-    } else if(!strcmp(keySizeComboBoxText,"8 Mb")) {
-        keyBufSize = 8*1024*1024;
-        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
-    } else if(!strcmp(keySizeComboBoxText,"16 Mb")) {
-        keyBufSize = 16*1024*1024;
-        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
-    } else if(!strcmp(keySizeComboBoxText,"32 Mb")) {
-        keyBufSize = 32*1024*1024;
-        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
-    } else if(!strcmp(keySizeComboBoxText,"64 Mb")) {
-        keyBufSize = 64*1024*1024;
-        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
-    } else if(!strcmp(keySizeComboBoxText,"128 Mb")) {
-        keyBufSize = 128*1024*1024;
-        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
-    } else if(!strcmp(keySizeComboBoxText,"256 Mb")) {
-        keyBufSize = 256*1024*1024;
-        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
-    } else if(!strcmp(keySizeComboBoxText,"512 Mb")) {
-        keyBufSize = 512*1024*1024;
-        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
-    } else {
-        keyBufSize = 32*1024*1024;
+    if(strcmp(keySizeComboBoxText,"32 Mb") != 0) {
+        keyBufSize = atol(keySizeComboBoxText) * sizeof(uint8_t) * getBufSizeMultiple((char *)keySizeComboBoxText);
         yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
     }
     
-    if(!strcmp(macBufSizeComboBoxText,"1 Mb")) {
-        genHmacBufSize = 1024*1024;
-    } else if(!strcmp(macBufSizeComboBoxText,"2 Mb")) {
-        genHmacBufSize = 2*1024*1024;
-    } else if(!strcmp(macBufSizeComboBoxText,"4 Mb")) {
-        genHmacBufSize = 4*1024*1024;
-    } else if(!strcmp(macBufSizeComboBoxText,"8 Mb")) {
-        genHmacBufSize = 8*1024*1024;
-    } else if(!strcmp(macBufSizeComboBoxText,"16 Mb")) {
-        genHmacBufSize = 16*1024*1024;
-    } else if(!strcmp(macBufSizeComboBoxText,"32 Mb")) {
-        genHmacBufSize = 32*1024*1024;
-    } else if(!strcmp(macBufSizeComboBoxText,"64 Mb")) {
-        genHmacBufSize = 64*1024*1024;
-    } else if(!strcmp(macBufSizeComboBoxText,"128 Mb")) {
-        genHmacBufSize = 128*1024*1024;
-    } else if(!strcmp(macBufSizeComboBoxText,"256 Mb")) {
-        genHmacBufSize = 256*1024*1024;
-    } else if(!strcmp(macBufSizeComboBoxText,"512 Mb")) {
-        genHmacBufSize = 512*1024*1024;
-    } else if(!strcmp(macBufSizeComboBoxText,"1 Gb")) {
-        genHmacBufSize = 1024*1024*1024;
-    } else if(!strcmp(macBufSizeComboBoxText,"2 Gb")) {
-        genHmacBufSize = 2*1024*1024;
-    } else if(!strcmp(macBufSizeComboBoxText,"4 Gb")) {
-        genHmacBufSize = 4*1024*1024;
-    } else if(!strcmp(macBufSizeComboBoxText,"8 Gb")) {
-        genHmacBufSize = 8*1024*1024;
-    } else {
-        genHmacBufSize = 1*1024*1024;
+    if(strcmp(macBufSizeComboBoxText,"1 Mb") != 0) {
+        genHmacBufSize = atol(macBufSizeComboBoxText) * sizeof(uint8_t) * getBufSizeMultiple((char *)macBufSizeComboBoxText);
     }
     
-    if(!strcmp(msgBufSizeComboBoxText,"1 Mb")) {
-        msgBufSize = 1024*1024;
-    } else if(!strcmp(msgBufSizeComboBoxText,"2 Mb")) {
-        msgBufSize = 2*1024*1024;
-    } else if(!strcmp(msgBufSizeComboBoxText,"4 Mb")) {
-        msgBufSize = 4*1024*1024;
-    } else if(!strcmp(msgBufSizeComboBoxText,"8 Mb")) {
-        msgBufSize = 8*1024*1024;
-    } else if(!strcmp(msgBufSizeComboBoxText,"16 Mb")) {
-        msgBufSize = 16*1024*1024;
-    } else if(!strcmp(msgBufSizeComboBoxText,"32 Mb")) {
-        msgBufSize = 32*1024*1024;
-    } else if(!strcmp(msgBufSizeComboBoxText,"64 Mb")) {
-        msgBufSize = 64*1024*1024;
-    } else if(!strcmp(msgBufSizeComboBoxText,"128 Mb")) {
-        msgBufSize = 128*1024*1024;
-    } else if(!strcmp(msgBufSizeComboBoxText,"256 Mb")) {
-        msgBufSize = 256*1024*1024;
-    } else if(!strcmp(msgBufSizeComboBoxText,"512 Mb")) {
-        msgBufSize = 512*1024*1024;
-    } else if(!strcmp(msgBufSizeComboBoxText,"1 Gb")) {
-        msgBufSize = 1024*1024*1024;
-    } else if(!strcmp(msgBufSizeComboBoxText,"2 Gb")) {
-        msgBufSize = 2*1024*1024;
-    } else if(!strcmp(msgBufSizeComboBoxText,"4 Gb")) {
-        msgBufSize = 4*1024*1024;
-    } else if(!strcmp(msgBufSizeComboBoxText,"8 Gb")) {
-        msgBufSize = 8*1024*1024;
-    } else {
-        msgBufSize = 1*1024*1024;
+    if(strcmp(msgBufSizeComboBoxText,"1 Mb") != 0) {
+         msgBufSize = atol(msgBufSizeComboBoxText) * sizeof(uint8_t) * getBufSizeMultiple((char *)msgBufSizeComboBoxText);
     }
     
     if(error != TRUE) {
@@ -864,120 +863,17 @@ void on_decryptButton_clicked(GtkWidget *wid, gpointer ptr)
         error = TRUE;
     }
     
-    if(!strcmp(keySizeComboBoxText,"1 Mb")) {
-        keyBufSize = 1024*1024;
-        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
-    } else if(!strcmp(keySizeComboBoxText,"2 Mb")) {
-        keyBufSize = 2*1024*1024;
-        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
-    } else if(!strcmp(keySizeComboBoxText,"4 Mb")) {
-        keyBufSize = 4*1024*1024;
-        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
-    } else if(!strcmp(keySizeComboBoxText,"8 Mb")) {
-        keyBufSize = 8*1024*1024;
-        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
-    } else if(!strcmp(keySizeComboBoxText,"16 Mb")) {
-        keyBufSize = 16*1024*1024;
-        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
-    } else if(!strcmp(keySizeComboBoxText,"32 Mb")) {
-        keyBufSize = 32*1024*1024;
-        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
-    } else if(!strcmp(keySizeComboBoxText,"64 Mb")) {
-        keyBufSize = 64*1024*1024;
-        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
-    } else if(!strcmp(keySizeComboBoxText,"128 Mb")) {
-        keyBufSize = 128*1024*1024;
-        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
-    } else if(!strcmp(keySizeComboBoxText,"256 Mb")) {
-        keyBufSize = 256*1024*1024;
-        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
-    } else if(!strcmp(keySizeComboBoxText,"512 Mb")) {
-        keyBufSize = 512*1024*1024;
-        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
-        
-    } else if(!strcmp(keySizeComboBoxText,"1 Gb")) {
-        keyBufSize = 1024*1024*1024;
-        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
-        
-    } else if(!strcmp(keySizeComboBoxText,"2 Gb")) {
-        keyBufSize = 2*1024*1024;
-        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
-        
-    } else if(!strcmp(keySizeComboBoxText,"4 Gb")) {
-        keyBufSize = 4*1024*1024;
-        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
-        
-    } else if(!strcmp(keySizeComboBoxText,"8 Gb")) {
-        keyBufSize = 8*1024*1024;;
-        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
-        
-    } else {
-        keyBufSize = 32*1024*1024;
+    if(strcmp(keySizeComboBoxText,"32 Mb") != 0) {
+        keyBufSize = atol(keySizeComboBoxText) * sizeof(uint8_t) * getBufSizeMultiple((char *)keySizeComboBoxText);
         yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
     }
     
-    if(!strcmp(macBufSizeComboBoxText,"1 Mb")) {
-        genHmacBufSize = 1024*1024;
-    } else if(!strcmp(macBufSizeComboBoxText,"2 Mb")) {
-        genHmacBufSize = 2*1024*1024;
-    } else if(!strcmp(macBufSizeComboBoxText,"4 Mb")) {
-        genHmacBufSize = 4*1024*1024;
-    } else if(!strcmp(macBufSizeComboBoxText,"8 Mb")) {
-        genHmacBufSize = 8*1024*1024;
-    } else if(!strcmp(macBufSizeComboBoxText,"16 Mb")) {
-        genHmacBufSize = 16*1024*1024;
-    } else if(!strcmp(macBufSizeComboBoxText,"32 Mb")) {
-        genHmacBufSize = 32*1024*1024;
-    } else if(!strcmp(macBufSizeComboBoxText,"64 Mb")) {
-        genHmacBufSize = 64*1024*1024;
-    } else if(!strcmp(macBufSizeComboBoxText,"128 Mb")) {
-        genHmacBufSize = 128*1024*1024;
-    } else if(!strcmp(macBufSizeComboBoxText,"256 Mb")) {
-        genHmacBufSize = 256*1024*1024;
-    } else if(!strcmp(macBufSizeComboBoxText,"512 Mb")) {
-        genHmacBufSize = 512*1024*1024;
-    } else if(!strcmp(macBufSizeComboBoxText,"1 Gb")) {
-        genHmacBufSize = 1024*1024*1024;
-    } else if(!strcmp(macBufSizeComboBoxText,"2 Gb")) {
-        genHmacBufSize = 2*1024*1024;
-    } else if(!strcmp(macBufSizeComboBoxText,"4 Gb")) {
-        genHmacBufSize = 4*1024*1024;
-    } else if(!strcmp(macBufSizeComboBoxText,"8 Gb")) {
-        genHmacBufSize = 8*1024*1024;
-    } else {
-        genHmacBufSize = 1*1024*1024;
+    if(strcmp(macBufSizeComboBoxText,"1 Mb") != 0) {
+        genHmacBufSize = atol(macBufSizeComboBoxText) * sizeof(uint8_t) * getBufSizeMultiple((char *)macBufSizeComboBoxText);
     }
     
-    if(!strcmp(msgBufSizeComboBoxText,"1 Mb")) {
-        msgBufSize = 1024*1024;
-    } else if(!strcmp(msgBufSizeComboBoxText,"2 Mb")) {
-        msgBufSize = 2*1024*1024;
-    } else if(!strcmp(msgBufSizeComboBoxText,"4 Mb")) {
-        msgBufSize = 4*1024*1024;
-    } else if(!strcmp(msgBufSizeComboBoxText,"8 Mb")) {
-        msgBufSize = 8*1024*1024;
-    } else if(!strcmp(msgBufSizeComboBoxText,"16 Mb")) {
-        msgBufSize = 16*1024*1024;
-    } else if(!strcmp(msgBufSizeComboBoxText,"32 Mb")) {
-        msgBufSize = 32*1024*1024;
-    } else if(!strcmp(msgBufSizeComboBoxText,"64 Mb")) {
-        msgBufSize = 64*1024*1024;
-    } else if(!strcmp(msgBufSizeComboBoxText,"128 Mb")) {
-        msgBufSize = 128*1024*1024;
-    } else if(!strcmp(msgBufSizeComboBoxText,"256 Mb")) {
-        msgBufSize = 256*1024*1024;
-    } else if(!strcmp(msgBufSizeComboBoxText,"512 Mb")) {
-        msgBufSize = 512*1024*1024;
-    } else if(!strcmp(msgBufSizeComboBoxText,"1 Gb")) {
-        msgBufSize = 1024*1024*1024;
-    } else if(!strcmp(msgBufSizeComboBoxText,"2 Gb")) {
-        msgBufSize = 2*1024*1024;
-    } else if(!strcmp(msgBufSizeComboBoxText,"4 Gb")) {
-        msgBufSize = 4*1024*1024;
-    } else if(!strcmp(msgBufSizeComboBoxText,"8 Gb")) {
-        msgBufSize = 8*1024*1024;
-    } else {
-        msgBufSize = 1*1024*1024;
+    if(strcmp(msgBufSizeComboBoxText,"1 Mb") != 0) {
+         msgBufSize = atol(msgBufSizeComboBoxText) * sizeof(uint8_t) * getBufSizeMultiple((char *)msgBufSizeComboBoxText);
     }
     
     if(error != TRUE) {

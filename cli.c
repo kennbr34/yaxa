@@ -99,41 +99,6 @@ char *getPass(const char *prompt, char *paddedPass)
     return paddedPass;
 }
 
-int getBufSizeMultiple(char *value) { 
-    
-    #define MAX_DIGITS 13
-    char valString[MAX_DIGITS] = {0};
-    /* Compiling without optimization results in extremely slow speeds, but this will be optimized 
-     * out if not set to volatile.
-     */
-    volatile int valueLength = 0;
-    volatile int multiple = 1;
-    
-    /* value from getsubopt is not null-terminated so must copy and get the length manually without
-     * string functions
-     */
-    for(valueLength = 0;valueLength < MAX_DIGITS;valueLength++) {
-        if(isdigit(value[valueLength])) {
-            valString[valueLength] = value[valueLength];
-            continue;
-        }
-        else if(isalpha(value[valueLength])) {
-            valString[valueLength] = value[valueLength];
-            valueLength++;
-            break;
-        }
-    }
-    
-    if(valString[valueLength-1] == 'b' || valString[valueLength-1] == 'B')
-        multiple = 1;
-    if(valString[valueLength-1] == 'k' || valString[valueLength-1] == 'K')
-        multiple = 1024;
-    if(valString[valueLength-1] == 'm' || valString[valueLength-1] == 'M')
-        multiple = 1024*1024;
-        
-    return multiple;
-}
-
 void parseOptions(
 int argc,
 char *argv[],
@@ -368,8 +333,8 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
     
-    FILE *otpInFile;
-    FILE *otpOutFile;
+    FILE *otpInFile = NULL;
+    FILE *otpOutFile = NULL;
 
     cryptint_t fileSize;
     
@@ -401,7 +366,10 @@ int main(int argc, char *argv[])
             }
             
             if(!optSt.passWordGiven) {
-                fread(yaxaKey,1,sizeof(*yaxaKey) * keyBufSize,keyFile);
+                if(freadWErrCheck(yaxaKey,1,sizeof(*yaxaKey) * keyBufSize,keyFile) != 0) {
+                    printSysError(returnVal);
+                    exit(EXIT_FAILURE);
+                }
                 fclose(keyFile);
             } else {
                 keyBufSize += HMAC_KEY_SIZE;
@@ -413,7 +381,10 @@ int main(int argc, char *argv[])
                     exit(EXIT_FAILURE);
                 }
                 genYaxaKey();
-                fread(yaxaKey + HMAC_KEY_SIZE,1,sizeof(*yaxaKey) * (keyBufSize - HMAC_KEY_SIZE),keyFile);
+                if(freadWErrCheck(yaxaKey + HMAC_KEY_SIZE,1,sizeof(*yaxaKey) * (keyBufSize - HMAC_KEY_SIZE),keyFile) != 0) {
+                    printSysError(returnVal);
+                    exit(EXIT_FAILURE);
+                }
                 fclose(keyFile);
             }
             
@@ -434,8 +405,14 @@ int main(int argc, char *argv[])
             if(optSt.passWordGiven) {
                 genYaxaKey();
             } else {
-                fread(yaxaKey,sizeof(*yaxaKey),HMAC_KEY_SIZE,otpInFile);
-                fwrite(yaxaKey,sizeof(*yaxaKey),HMAC_KEY_SIZE,otpOutFile);
+                if(freadWErrCheck(yaxaKey,sizeof(*yaxaKey),HMAC_KEY_SIZE,otpInFile) != 0) {
+                    printSysError(returnVal);
+                    exit(EXIT_FAILURE);
+                }
+                if(fwriteWErrCheck(yaxaKey,sizeof(*yaxaKey),HMAC_KEY_SIZE,otpOutFile) != 0) {
+                    printSysError(returnVal);
+                    exit(EXIT_FAILURE);
+                }
             }
             
         } else {
@@ -517,7 +494,10 @@ int main(int argc, char *argv[])
         if(optSt.keyFileGiven) {
             FILE *keyFile = fopen(keyFileName,"rb");
             if(!optSt.passWordGiven) {
-                fread(yaxaKey,1,sizeof(*yaxaKey) * keyBufSize,keyFile);
+                if(freadWErrCheck(yaxaKey,1,sizeof(*yaxaKey) * keyBufSize,keyFile) != 0) {
+                    printSysError(returnVal);
+                    exit(EXIT_FAILURE);
+                }
                 fclose(keyFile);
             } else {
                 keyBufSize += HMAC_KEY_SIZE;
@@ -529,7 +509,10 @@ int main(int argc, char *argv[])
                     exit(EXIT_FAILURE);
                 }
                 genYaxaKey();
-                fread(yaxaKey + HMAC_KEY_SIZE,1,sizeof(*yaxaKey) * (keyBufSize - HMAC_KEY_SIZE),keyFile);
+                if(freadWErrCheck(yaxaKey + HMAC_KEY_SIZE,1,sizeof(*yaxaKey) * (keyBufSize - HMAC_KEY_SIZE),keyFile) != 0) {
+                    printSysError(returnVal);
+                    exit(EXIT_FAILURE);
+                }
                 fclose(keyFile);
             }
         } else if(optSt.oneTimePad) {
@@ -545,7 +528,10 @@ int main(int argc, char *argv[])
             if(optSt.passWordGiven) {
                 genYaxaKey();
             } else {
-                fread(yaxaKey,sizeof(*yaxaKey),HMAC_KEY_SIZE,otpInFile);
+                if(freadWErrCheck(yaxaKey,sizeof(*yaxaKey),HMAC_KEY_SIZE,otpInFile) != 0) {
+                    printSysError(returnVal);
+                    exit(EXIT_FAILURE);
+                }
             }
                         
         } else {

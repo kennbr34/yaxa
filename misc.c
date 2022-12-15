@@ -49,3 +49,40 @@ cryptint_t getFileSize(const char *filename)
     stat(filename, &st);
     return st.st_size;
 }
+
+size_t getBufSizeMultiple(char *value) { 
+    
+    #define MAX_DIGITS 13
+    char valString[MAX_DIGITS] = {0};
+    /* Compiling without optimization results in extremely slow speeds, but this will be optimized 
+     * out if not set to volatile.
+     */
+    volatile int valueLength = 0;
+    volatile int multiple = 1;
+    
+    /* value from getsubopt is not null-terminated so must copy and get the length manually without
+     * string functions
+     */
+    for(valueLength = 0;valueLength < MAX_DIGITS;valueLength++) {
+        if(isdigit(value[valueLength])) {
+            valString[valueLength] = value[valueLength];
+            continue;
+        }
+        else if(isalpha(value[valueLength])) {
+            valString[valueLength] = value[valueLength];
+            valueLength++;
+            break;
+        }
+    }
+    
+    if(valString[valueLength-1] == 'b' || valString[valueLength-1] == 'B')
+        multiple = 1;
+    if(valString[valueLength-1] == 'k' || valString[valueLength-1] == 'K')
+        multiple = 1024;
+    if(valString[valueLength-1] == 'm' || valString[valueLength-1] == 'M')
+        multiple = 1024*1024;
+    if(valString[valueLength-1] == 'g' || valString[valueLength-1] == 'G')
+        multiple = 1024*1024*1024;
+        
+    return multiple;
+}
