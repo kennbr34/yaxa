@@ -237,6 +237,7 @@ struct optionsStruct *optSt
                             
                         optSt->macBufSizeGiven = true;
                         genHmacBufSize = atol(value) * sizeof(uint8_t) * getBufSizeMultiple(value);
+                        makeMultipleOf(&genHmacBufSize,sizeof(cryptint_t));
                     break;
                     case MSG_BUFFER:
                         if (value == NULL) {
@@ -251,6 +252,7 @@ struct optionsStruct *optSt
                         /*Divide the amount specified by the size of cryptint_t since it will 
                          * be multipled later*/
                         msgBufSize = (atol(value) * getBufSizeMultiple(value));
+                        makeMultipleOf(&msgBufSize,sizeof(cryptint_t));
                     break;
                     default:
                         fprintf(stderr, "No match found for token: /%s/\n", value);

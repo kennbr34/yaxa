@@ -16,3 +16,4 @@ char *getPass(const char *prompt, char *paddedPass);                            
 uint8_t printSyntax(char *arg);                                              /*Print program usage and help*/
 void signalHandler(int signum);                                          /*Signal handler for Ctrl+C*/
 cryptint_t yaxa(cryptint_t messageInt, uint8_t *oneTimePad);                    /*YAXA encryption/decryption function*/
+void makeMultipleOf(size_t *numberToChange, size_t multiple);

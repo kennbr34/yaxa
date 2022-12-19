@@ -86,3 +86,12 @@ size_t getBufSizeMultiple(char *value) {
         
     return multiple;
 }
+
+void makeMultipleOf(size_t *numberToChange, size_t multiple) {
+	 if(*numberToChange > multiple && *numberToChange % multiple != 0) {
+                *numberToChange = *numberToChange - (*numberToChange % multiple);
+        } else if (*numberToChange > multiple && *numberToChange % multiple == 0) {
+                *numberToChange = *numberToChange;
+        }
+}
+

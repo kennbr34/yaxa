@@ -697,10 +697,12 @@ void on_encryptButton_clicked(GtkWidget *wid, gpointer ptr)
     
     if(strcmp(macBufSizeComboBoxText,"1 Mb") != 0) {
         genHmacBufSize = atol(macBufSizeComboBoxText) * sizeof(uint8_t) * getBufSizeMultiple((char *)macBufSizeComboBoxText);
+        makeMultipleOf(&genHmacBufSize,sizeof(cryptint_t));
     }
     
     if(strcmp(msgBufSizeComboBoxText,"1 Mb") != 0) {
          msgBufSize = atol(msgBufSizeComboBoxText) * sizeof(uint8_t) * getBufSizeMultiple((char *)msgBufSizeComboBoxText);
+         makeMultipleOf(&msgBufSize,sizeof(cryptint_t));
     }
     
     if(strlen(passWord)) {
@@ -806,10 +808,12 @@ void on_decryptButton_clicked(GtkWidget *wid, gpointer ptr)
     
     if(strcmp(macBufSizeComboBoxText,"1 Mb") != 0) {
         genHmacBufSize = atol(macBufSizeComboBoxText) * sizeof(uint8_t) * getBufSizeMultiple((char *)macBufSizeComboBoxText);
+        makeMultipleOf(&genHmacBufSize,sizeof(cryptint_t));
     }
     
     if(strcmp(msgBufSizeComboBoxText,"1 Mb") != 0) {
          msgBufSize = atol(msgBufSizeComboBoxText) * sizeof(uint8_t) * getBufSizeMultiple((char *)msgBufSizeComboBoxText);
+         makeMultipleOf(&msgBufSize,sizeof(cryptint_t));
     }
     
     if(strlen(passWord)) {
