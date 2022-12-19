@@ -393,24 +393,28 @@ cryptint_t yaxa(cryptint_t messageInt, uint8_t *otpBuffer)
 {
     if(otpBuffer != NULL) {
         /*Fill up 128-bit key integer with 16 8-bit bytes from yaxaKey*/
-        for (uint8_t i = 0; i < sizeof(keyInt); i++)
+        for (uint8_t i = 0; i < sizeof(keyInt); i++) {
+            /*Reset to the start of the key if reached the end*/
+            if (k + 1 >= msgBufSize)
+                k = 0;
+            else
+                k++;
             keyBytes[i] = otpBuffer[k++];
+        }
             
         memcpy(&keyInt,keyBytes,sizeof(keyInt));
-        
-        /*Reset to the start of the key if reached the end*/
-        if (k + 1 >= msgBufSize)
-            k = 0;
     } else {
     /*Fill up 128-bit key integer with 16 8-bit bytes from yaxaKey*/
-        for (uint8_t i = 0; i < sizeof(keyInt); i++)
-            keyBytes[i] = yaxaKey[k++];
+        for (uint8_t i = 0; i < sizeof(keyInt); i++) {
+            /*Reset to the start of the key if reached the end*/
+            if (k + 1 >= keyBufSize)
+                k = 0;
+            else
+                k++;
+            keyBytes[i] = yaxaKey[k];
+        }
             
         memcpy(&keyInt,keyBytes,sizeof(keyInt));
-        
-        /*Reset to the start of the key if reached the end*/
-        if (k + 1 >= keyBufSize)
-            k = 0;
     }
         
     /*Ctr ^ K ^ N ^ M*/

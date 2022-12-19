@@ -308,7 +308,7 @@ int workThread()
 {
     pid_t p = fork();
     if(p) return 0;
-    
+            
     FILE *inFile = fopen(inputFilePath, "rb");
     if (inFile == NULL) {
         printFileError(inputFilePath, errno);
