@@ -30,6 +30,10 @@ char userPass[MAX_PASS_SIZE];
 char userPassToVerify[MAX_PASS_SIZE];
 uint8_t passKeyedHash[PASS_KEYED_HASH_SIZE], passKeyedHashFromFile[PASS_KEYED_HASH_SIZE];
 
+size_t nFactor = DEFAULT_SCRYPT_N;
+size_t pFactor = DEFAULT_SCRYPT_P;
+size_t rFactor = DEFAULT_SCRYPT_R;
+
 uint8_t generatedMAC[MAC_SIZE];
 uint8_t fileMAC[MAC_SIZE];
 uint8_t *hmacKey = NULL;

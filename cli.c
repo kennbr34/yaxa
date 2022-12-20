@@ -17,6 +17,13 @@ uint8_t printSyntax(char *arg)
 \n-i,--input-file - input file\
 \n-o,--output-file - output file\
 \n-p,--password - password to use\
+\n-w,--work-factors - [N=],[r=],[p=]\
+\n\t N=num\
+\n\t\t N factor for scrypt to use. Must be a power of 2. Default 1048576\
+\n\t r=num\
+\n\t\t r factor for scrypt to use. Default 8\
+\n\t p=num\
+\n\t\t p factor for scrypt to use. Default 1\
 \n-k,--key-file - keyfile to use\
 \n-s,--sizes - [key_size=],[mac_buffer=],[message_buffer=]\
 \n\t key_size=num[b|k|m]\
@@ -120,11 +127,15 @@ struct optionsStruct *optSt
             {"key-file",       required_argument, 0,'k' },
             {"otp-file",       required_argument, 0,'O' },
             {"password",       required_argument, 0,'p' },
+            {"work-factors",   required_argument, 0,'w' },
             {"sizes",          required_argument, 0,'s' },
             {0,                0,                 0, 0  }
         };
         
-        c = getopt_long(argc, argv, "edi:o:k:O:p:s:",
+        char *subopts;
+        char *value;
+        
+        c = getopt_long(argc, argv, "edi:o:k:O:p:w:s:",
                         long_options, &option_index);
        if (c == -1)
            break;
@@ -192,6 +203,62 @@ struct optionsStruct *optSt
                 snprintf(userPass, MAX_PASS_SIZE, "%s", optarg);
             }
         break;
+        case 'w':
+            if (optarg[0] == '-') {
+                fprintf(stderr, "Option -%c requires an argument\n", c);
+                errflg++;
+                break;
+            }
+
+            enum {
+                N_FACTOR = 0,
+                R_FACTOR,
+                P_FACTOR
+            };
+
+            char *const token[] = {
+                [N_FACTOR] = "N",
+                [R_FACTOR] = "r",
+                [P_FACTOR] = "p",
+                NULL};
+
+            subopts = optarg;
+
+            while (*subopts != '\0' && !errflg) {
+                switch (getsubopt(&subopts, token, &value)) {
+                case N_FACTOR:
+                    nFactor = atol(value);
+
+                    int testNum = nFactor;
+                    while (testNum > 1) {
+                        if (testNum % 2 != 0) {
+                            fprintf(stderr, "scrypt's N factor must be a power of 2.");
+                            nFactor--;
+                            nFactor |= nFactor >> 1;
+                            nFactor |= nFactor >> 2;
+                            nFactor |= nFactor >> 4;
+                            nFactor |= nFactor >> 8;
+                            nFactor |= nFactor >> 16;
+                            nFactor++;
+                            fprintf(stderr, " Rounding it up to %zu\n", nFactor);
+                            break;
+                        }
+                        testNum /= 2;
+                    }
+                    break;
+                case R_FACTOR:
+                    rFactor = atol(value);
+                    break;
+                case P_FACTOR:
+                    pFactor = atol(value);
+                    break;
+                default:
+                    fprintf(stderr, "No match found for token: %s\n", value);
+                    errflg = 1;
+                    break;
+                }
+            }
+        break;
         case 's':
             if (optarg[0] == '-' && strlen(optarg) == 2) {
                 fprintf(stderr, "Option -s requires an argument\n");
@@ -210,9 +277,6 @@ struct optionsStruct *optSt
                     [MSG_BUFFER]   = "message_buffer",
                     NULL
                 };
-                
-                char *subopts;
-                char *value;
                 
                 subopts = optarg;
                 while (*subopts != '\0' && !errflg) {

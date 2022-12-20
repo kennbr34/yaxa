@@ -220,17 +220,17 @@ void genYaxaKey()
         ERR_print_errors_fp(stderr);
         exit(EXIT_FAILURE);
     }
-    if (EVP_PKEY_CTX_set_scrypt_N(pctx, DEFAULT_SCRYPT_N) <= 0) {
+    if (EVP_PKEY_CTX_set_scrypt_N(pctx, nFactor) <= 0) {
         printError("scrypt failed\n");
         ERR_print_errors_fp(stderr);
         exit(EXIT_FAILURE);
     }
-    if (EVP_PKEY_CTX_set_scrypt_r(pctx, DEFAULT_SCRYPT_R) <= 0) {
+    if (EVP_PKEY_CTX_set_scrypt_r(pctx, rFactor) <= 0) {
         printError("scrypt failed\n");
         ERR_print_errors_fp(stderr);
         exit(EXIT_FAILURE);
     }
-    if (EVP_PKEY_CTX_set_scrypt_p(pctx, DEFAULT_SCRYPT_P) <= 0) {
+    if (EVP_PKEY_CTX_set_scrypt_p(pctx, pFactor) <= 0) {
         printError("scrypt failed\n");
         ERR_print_errors_fp(stderr);
         exit(EXIT_FAILURE);
