@@ -192,7 +192,6 @@ void genPassTag()
 
 void genYaxaKey()
 {
-    
     #ifdef gui
     *progressFraction = 0;
     double keyChunkFloat = YAXA_KEY_CHUNK_SIZE;

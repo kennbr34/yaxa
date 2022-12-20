@@ -30,6 +30,10 @@ GtkWidget *otpFileNameBox;
 GtkWidget *passwordBox;
 GtkWidget *passwordVerificationBox;
 
+GtkWidget *nFactorTextBox;
+GtkWidget *rFactorTextBox;
+GtkWidget *pFactorTextBox;
+
 GtkWidget *otpFileButton;
 GtkWidget *keyFileButton;
 
@@ -106,6 +110,44 @@ int main(int argc, char *argv[])
     gtk_entry_set_invisible_char(GTK_ENTRY (passwordVerificationBox),'*');
     gtk_entry_set_visibility(GTK_ENTRY (passwordVerificationBox), FALSE);
     
+    GtkWidget *scryptWorkFactorsLabel = gtk_label_new ("scrypt work factors:");
+    
+    GtkWidget *nFactorLabel = gtk_label_new ("N Factor");
+    GtkAdjustment *nFactorSpinButtonAdj = gtk_adjustment_new (DEFAULT_SCRYPT_N, DEFAULT_SCRYPT_N, DEFAULT_SCRYPT_N * 8, 1048576, 0, 0);
+    nFactorTextBox = gtk_spin_button_new (GTK_ADJUSTMENT (nFactorSpinButtonAdj), 0, 0);
+    gtk_widget_set_tooltip_text (nFactorTextBox, "This is the N factor that will be used by scrypt");
+    
+    GtkWidget *rFactorLabel = gtk_label_new ("r Factor");
+    GtkAdjustment *rFactorSpinButtonAdj = gtk_adjustment_new (DEFAULT_SCRYPT_R, -10, 10, 1, 0, 0);
+    rFactorTextBox = gtk_spin_button_new (GTK_ADJUSTMENT (rFactorSpinButtonAdj), 0, 0);
+    gtk_widget_set_tooltip_text (rFactorTextBox, "This is the r factor that will be used by scrypt");
+    
+    GtkWidget *pFactorLabel = gtk_label_new ("p Factor");
+    GtkAdjustment *pFactorSpinButtonAdj = gtk_adjustment_new (DEFAULT_SCRYPT_P, -10, 10, 1, 0, 0);
+    pFactorTextBox = gtk_spin_button_new (GTK_ADJUSTMENT (pFactorSpinButtonAdj), 0, 0);
+    gtk_widget_set_tooltip_text (pFactorTextBox, "This is the p factor that will be used by scrypt");
+    
+    char scryptToolTipText[] = "\
+    scrypt is a Key Derivation Function which derives a key from a password \
+    that is very computationally and memory-expensive to attempt to brute-force\
+    \n\
+    \nN is the \"CostFactor\" and will increase CPU and memory usage. It must be a power of 2 and \
+    it will increase memory usage exponentially, so you may run out of RAM if you set too high\n\
+    \nr is the \"BlockSizeFactor\" which controls memory read size and performance\n\
+    \np is the \"ParallelizationFactor\" factor which controls how many CPUs or cores to use\n\
+    \nThe N factor is typically the only value which the user should modify and the default\
+    is the current reccomendation, but one should Google for more guidance on this. Or, \
+    as a rule of thumb, tune this to a factor which takes as long for your CPU to generate\
+    a key as is satisfactory to you and/or that your computer has memory resources for.\
+    \n\n ***Very Important***\n\
+    You must remember these settings to generate the proper key for decryption";
+    
+    gtk_widget_set_tooltip_text (scryptWorkFactorsLabel, (const gchar * )scryptToolTipText);
+    gtk_widget_set_tooltip_text (nFactorLabel, (const gchar * )scryptToolTipText);
+    gtk_widget_set_tooltip_text (rFactorLabel, (const gchar * )scryptToolTipText);
+    gtk_widget_set_tooltip_text (pFactorLabel, (const gchar * )scryptToolTipText);
+    
+    
     GtkWidget *keySizeLabel = gtk_label_new ("Key Size");
     keySizeComboBox = gtk_combo_box_text_new ();
     gtk_widget_set_tooltip_text (keySizeComboBox, "This controls the size of the key that will be derived from the password");
@@ -145,9 +187,9 @@ int main(int argc, char *argv[])
     keyFileNameBox = gtk_entry_new ();
     g_signal_connect (keyFileNameBox, "insert-text", G_CALLBACK (otpFileEntryDisable), NULL);
     g_signal_connect (keyFileNameBox, "delete-text", G_CALLBACK (otpFileEntryEnable), NULL);
-    gtk_widget_set_tooltip_text (keyFileNameBox, "Enter the full path to the key you want to encrypt with here");
+    gtk_widget_set_tooltip_text (keyFileNameBox, "Enter the full path to the key you want to use here");
     keyFileButton = gtk_button_new_with_label ("Select File");
-    gtk_widget_set_tooltip_text (keyFileButton, "Select the key file you want to encrypt with here");
+    gtk_widget_set_tooltip_text (keyFileButton, "Select the key file you want to use here");
     g_signal_connect (keyFileButton, "clicked", G_CALLBACK (keyFileSelect), win);
     g_signal_connect (keyFileButton, "clicked", G_CALLBACK (otpFileEntryDisable), NULL);
     
@@ -155,11 +197,18 @@ int main(int argc, char *argv[])
     otpFileNameBox = gtk_entry_new ();
     g_signal_connect (otpFileNameBox, "insert-text", G_CALLBACK (keyFileEntryDisable), NULL);
     g_signal_connect (otpFileNameBox, "delete-text", G_CALLBACK (keyFileEntryEnable), NULL);
-    gtk_widget_set_tooltip_text (otpFileNameBox, "Enter the full path to the one-time-pad you want to encrypt with here");
+    gtk_widget_set_tooltip_text (otpFileNameBox, "Enter the full path to the one-time-pad you want to use here");
     otpFileButton = gtk_button_new_with_label ("Select File");
-    gtk_widget_set_tooltip_text (otpFileButton, "Select the one-time-pad file you want to encrypt with here");
+    gtk_widget_set_tooltip_text (otpFileButton, "Select the one-time-pad file you want to use here");
     g_signal_connect (otpFileButton, "clicked", G_CALLBACK (otpFileSelect), win);
     g_signal_connect (otpFileButton, "clicked", G_CALLBACK (keyFileEntryDisable), NULL);
+    
+    gtk_widget_set_tooltip_text (otpFileNameBox, "Enter the full path to the one-time-pad you want to use here\
+    \n\n\
+    Using a one-time-pad means using something like /dev/urandom or another random-number generator\
+    to produce a keystream that will be as long as the file being encrypted is. This cannot be used\
+    in conjunction with a regular key, and the one-time-pad will be saved in the same directory as\
+    the input file, under the same name, but with a .pad extension");
     
     GtkWidget *macBufSizeLabel = gtk_label_new ("Authentication Buffer Size");
     macBufSizeComboBox = gtk_combo_box_text_new ();
@@ -272,26 +321,33 @@ int main(int argc, char *argv[])
     gtk_grid_attach (GTK_GRID (grid), outputFileButton, 1, 5, 1, 1);
     gtk_grid_attach (GTK_GRID (grid), passwordLabel, 0, 7, 1, 1);
     gtk_grid_attach (GTK_GRID (grid), passwordBox, 0, 8, 1, 1);
-    gtk_grid_attach (GTK_GRID (grid), verificationLabel, 0, 9, 1, 1);
-    gtk_grid_attach (GTK_GRID (grid), keySizeLabel, 1, 9, 1, 1);
-    gtk_grid_attach (GTK_GRID (grid), passwordVerificationBox, 0, 10, 1, 1);
-    gtk_grid_attach (GTK_GRID (grid), keySizeComboBox, 1, 10, 1, 1);
     gtk_grid_attach (GTK_GRID (grid), visibilityButton, 1, 8, 1, 1);
-    gtk_grid_attach (GTK_GRID (grid), keyFileLabel, 0, 11, 1, 1);
-    gtk_grid_attach (GTK_GRID (grid), keyFileNameBox, 0, 12, 1, 1);
-    gtk_grid_attach (GTK_GRID (grid), keyFileButton, 1, 12, 1, 1);
-    gtk_grid_attach (GTK_GRID (grid), otpFileLabel, 0, 13, 1, 1);
-    gtk_grid_attach (GTK_GRID (grid), otpFileNameBox, 0, 14, 1, 1);
-    gtk_grid_attach (GTK_GRID (grid), otpFileButton, 1, 14, 1, 1);
-    gtk_grid_attach (GTK_GRID (grid), macBufSizeLabel, 0, 15, 1, 1);
-    gtk_grid_attach (GTK_GRID (grid), msgBufSizeLabel, 1, 15, 1, 1);
-    gtk_grid_attach (GTK_GRID (grid), macBufSizeComboBox, 0, 16, 1, 1);
-    gtk_grid_attach (GTK_GRID (grid), msgBufSizeComboBox, 1, 16, 1, 1);
-    gtk_grid_attach (GTK_GRID (grid), encryptButton, 0, 17, 2, 1);
-    gtk_grid_attach (GTK_GRID (grid), decryptButton, 0, 18, 2, 1);
-    gtk_grid_attach (GTK_GRID (grid), progressBar, 0, 19, 2, 1);
-    gtk_grid_attach (GTK_GRID (grid), overallProgressBar, 0, 20, 2, 1);
-    gtk_grid_attach (GTK_GRID (grid), statusBar, 0, 21, 2, 1);
+    gtk_grid_attach (GTK_GRID (grid), verificationLabel, 0, 9, 1, 1);
+    gtk_grid_attach (GTK_GRID (grid), keySizeLabel, 0, 11, 1, 1);
+    gtk_grid_attach (GTK_GRID (grid), keySizeComboBox, 1, 11, 1, 1);
+    gtk_grid_attach (GTK_GRID (grid), passwordVerificationBox, 0, 10, 1, 1);
+    gtk_grid_attach (GTK_GRID (grid), scryptWorkFactorsLabel, 0, 12, 1, 1);
+    gtk_grid_attach (GTK_GRID (grid), nFactorLabel, 0, 13, 1, 1);
+    gtk_grid_attach (GTK_GRID (grid), nFactorTextBox, 1, 13, 1, 1);
+    gtk_grid_attach (GTK_GRID (grid), rFactorLabel, 0, 15, 1, 1);
+    gtk_grid_attach (GTK_GRID (grid), rFactorTextBox, 1, 15, 1, 1);
+    gtk_grid_attach (GTK_GRID (grid), pFactorLabel, 0, 17, 1, 1);
+    gtk_grid_attach (GTK_GRID (grid), pFactorTextBox, 1, 17, 1, 1);
+    gtk_grid_attach (GTK_GRID (grid), keyFileLabel, 0, 18, 1, 1);
+    gtk_grid_attach (GTK_GRID (grid), keyFileNameBox, 0, 19, 1, 1);
+    gtk_grid_attach (GTK_GRID (grid), keyFileButton, 1, 19, 1, 1);
+    gtk_grid_attach (GTK_GRID (grid), otpFileLabel, 0, 20, 1, 1);
+    gtk_grid_attach (GTK_GRID (grid), otpFileNameBox, 0, 21, 1, 1);
+    gtk_grid_attach (GTK_GRID (grid), otpFileButton, 1, 21, 1, 1);
+    gtk_grid_attach (GTK_GRID (grid), macBufSizeLabel, 0, 24, 1, 1);
+    gtk_grid_attach (GTK_GRID (grid), macBufSizeComboBox, 0, 25, 1, 1);
+    gtk_grid_attach (GTK_GRID (grid), msgBufSizeLabel, 1, 24, 1, 1);
+    gtk_grid_attach (GTK_GRID (grid), msgBufSizeComboBox, 1, 25, 1, 1);
+    gtk_grid_attach (GTK_GRID (grid), encryptButton, 0, 26, 2, 1);
+    gtk_grid_attach (GTK_GRID (grid), decryptButton, 0, 27, 2, 1);
+    gtk_grid_attach (GTK_GRID (grid), progressBar, 0, 28, 2, 1);
+    gtk_grid_attach (GTK_GRID (grid), overallProgressBar, 0, 29, 2, 1);
+    gtk_grid_attach (GTK_GRID (grid), statusBar, 0, 30, 2, 1);
     
     
     gtk_container_add (GTK_CONTAINER (win), grid);
@@ -689,6 +745,18 @@ void on_encryptButton_clicked(GtkWidget *wid, gpointer ptr)
         strcpy(statusMessage,"Input and output file are the same...");
         error = TRUE;
     }
+        
+    if(gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(nFactorTextBox)) != DEFAULT_SCRYPT_N) {
+        nFactor = gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(nFactorTextBox));
+    }
+    
+    if(gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(rFactorTextBox)) != DEFAULT_SCRYPT_R) {
+        rFactor = gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(rFactorTextBox));
+    }
+    
+    if(gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(pFactorTextBox)) != DEFAULT_SCRYPT_P) {
+        pFactor = gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(pFactorTextBox));
+    }
     
     if(strcmp(keySizeComboBoxText,"32 Mb") != 0) {
         keyBufSize = atol(keySizeComboBoxText) * sizeof(uint8_t) * getBufSizeMultiple((char *)keySizeComboBoxText);
@@ -799,6 +867,18 @@ void on_decryptButton_clicked(GtkWidget *wid, gpointer ptr)
     } else {
         strcpy(statusMessage,"Need output file...");
         error = TRUE;
+    }
+    
+    if(gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(nFactorTextBox)) != DEFAULT_SCRYPT_N) {
+        nFactor = gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(nFactorTextBox));
+    }
+    
+    if(gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(rFactorTextBox)) != DEFAULT_SCRYPT_R) {
+        rFactor = gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(rFactorTextBox));
+    }
+    
+    if(gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(pFactorTextBox)) != DEFAULT_SCRYPT_P) {
+        pFactor = gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(pFactorTextBox));
     }
     
     if(strcmp(keySizeComboBoxText,"32 Mb") != 0) {
