@@ -25,6 +25,7 @@ uint8_t printSyntax(char *arg)
 \n\t p=num\
 \n\t\t p factor for scrypt to use. Default 1\
 \n-k,--key-file - keyfile to use\
+\n-O,--otp-file - one-time-pad file. Note: message_buffer size must stay the same between encryption and decryption\
 \n-s,--sizes - [key_size=],[mac_buffer=],[message_buffer=]\
 \n\t key_size=num[b|k|m]\
 \n\t\t Size of key to generate from password in bytes, kilobytes or megabytes\

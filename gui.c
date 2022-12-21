@@ -197,7 +197,6 @@ int main(int argc, char *argv[])
     otpFileNameBox = gtk_entry_new ();
     g_signal_connect (otpFileNameBox, "insert-text", G_CALLBACK (keyFileEntryDisable), NULL);
     g_signal_connect (otpFileNameBox, "delete-text", G_CALLBACK (keyFileEntryEnable), NULL);
-    gtk_widget_set_tooltip_text (otpFileNameBox, "Enter the full path to the one-time-pad you want to use here");
     otpFileButton = gtk_button_new_with_label ("Select File");
     gtk_widget_set_tooltip_text (otpFileButton, "Select the one-time-pad file you want to use here");
     g_signal_connect (otpFileButton, "clicked", G_CALLBACK (otpFileSelect), win);
@@ -208,7 +207,8 @@ int main(int argc, char *argv[])
     Using a one-time-pad means using something like /dev/urandom or another random-number generator\
     to produce a keystream that will be as long as the file being encrypted is. This cannot be used\
     in conjunction with a regular key, and the one-time-pad will be saved in the same directory as\
-    the input file, under the same name, but with a .pad extension");
+    the input file, under the same name, but with a .pad extension\
+    \n***Very Important:*** Must use same size buffers between encryption and decryption");
     
     GtkWidget *macBufSizeLabel = gtk_label_new ("Authentication Buffer Size");
     macBufSizeComboBox = gtk_combo_box_text_new ();

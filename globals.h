@@ -60,3 +60,5 @@ bool gotPassFromCmdLine = false;
 double *progressFraction;
 char *statusMessage;
 
+uint8_t *otpBuffer = NULL;
+
