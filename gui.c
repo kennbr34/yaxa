@@ -836,6 +836,13 @@ void on_encryptButton_clicked(GtkWidget *wid, gpointer ptr)
         strcpy(statusMessage,"Starting encryption...");
         workThread();
     }
+    
+    OPENSSL_cleanse((void *)userPass, strlen(userPass));
+    //OPENSSL_cleanse((void *)keyFileName, strlen(keyFileName));
+    //OPENSSL_cleanse((void *)otpInFileName, strlen(otpInFileName));
+    //OPENSSL_cleanse((void *)nFactorTextBox, sizeof(nFactorTextBox));
+    //OPENSSL_cleanse((void *)rFactorTextBox, sizeof(rFactorTextBox));
+    //OPENSSL_cleanse((void *)pFactorTextBox, sizeof(pFactorTextBox));
 }
 
 void on_decryptButton_clicked(GtkWidget *wid, gpointer ptr)
@@ -955,6 +962,13 @@ void on_decryptButton_clicked(GtkWidget *wid, gpointer ptr)
         strcpy(statusMessage,"Starting encryption...");
         workThread();
     }
+    
+    OPENSSL_cleanse((void *)userPass, strlen(userPass));
+    //OPENSSL_cleanse((void *)keyFileName, strlen(keyFileName));
+    //OPENSSL_cleanse((void *)otpInFileName, strlen(otpInFileName));
+    //OPENSSL_cleanse((void *)nFactorTextBox, sizeof(nFactorTextBox));
+    //OPENSSL_cleanse((void *)rFactorTextBox, sizeof(rFactorTextBox));
+    //OPENSSL_cleanse((void *)pFactorTextBox, sizeof(pFactorTextBox));
 }
 
 static void inputFileSelect (GtkWidget *wid, gpointer ptr)
