@@ -7,8 +7,7 @@
 #include "misc.c"
 #include "buffers.c"
 
-void on_encryptButton_clicked(GtkWidget *wid, gpointer ptr);
-void on_decryptButton_clicked(GtkWidget *wid, gpointer ptr);
+void on_cryptButton_clicked(GtkWidget *wid, gpointer ptr);
 static void inputFileSelect (GtkWidget *wid, gpointer ptr);
 static void outputFileSelect (GtkWidget *wid, gpointer ptr);
 static void keyFileSelect (GtkWidget *wid, gpointer ptr);
@@ -289,10 +288,10 @@ int main(int argc, char *argv[])
     gtk_combo_box_set_active (GTK_COMBO_BOX (msgBufSizeComboBox), 20);
     
     GtkWidget *encryptButton = gtk_button_new_with_label ("Encrypt");
-    g_signal_connect (encryptButton, "clicked", G_CALLBACK (on_encryptButton_clicked), NULL);
+    g_signal_connect (encryptButton, "clicked", G_CALLBACK (on_cryptButton_clicked), (gpointer)"encrypt");
         
     GtkWidget *decryptButton = gtk_button_new_with_label ("Decrypt");
-    g_signal_connect (decryptButton, "clicked", G_CALLBACK (on_decryptButton_clicked), NULL);
+    g_signal_connect (decryptButton, "clicked", G_CALLBACK (on_cryptButton_clicked), (gpointer)"decrypt");
     
     progressBar = gtk_progress_bar_new ();
     gtk_progress_bar_set_text (GTK_PROGRESS_BAR (progressBar), "Step Progress");
@@ -710,8 +709,9 @@ static gboolean updateOverallProgress(gpointer user_data)
     return TRUE;
 }
 
-void on_encryptButton_clicked(GtkWidget *wid, gpointer ptr)
-{
+void on_cryptButton_clicked(GtkWidget *wid, gpointer ptr) {
+    char *encryptOrDecrypt = (char *)ptr;
+    
     keyFileEntryEnable();
     otpFileEntryEnable();
     
@@ -796,21 +796,35 @@ void on_encryptButton_clicked(GtkWidget *wid, gpointer ptr)
         error = TRUE;
     }
     
-    if(optSt.passWordGiven) {
-        verificationPass = gtk_entry_get_text (GTK_ENTRY (passwordVerificationBox));
-        if(strcmp(passWord,verificationPass) == 0)
-            passwordsMatch = TRUE;
-        
-        if (passwordsMatch == FALSE) {
-            strcpy(statusMessage,"Passwords didn't match");
-            error = TRUE;
-        } else if(passwordsMatch == TRUE) {
-            snprintf(userPass,MAX_PASS_SIZE,"%s",passWord);
-        
-            gtk_entry_set_text(GTK_ENTRY (passwordBox), "");
-            OPENSSL_cleanse((void *)passWord, strlen(passWord));
-            gtk_entry_set_text(GTK_ENTRY (passwordBox), passWord);
+    if(strcmp(encryptOrDecrypt,"encrypt") == 0) {
+        if(optSt.passWordGiven) {
+            verificationPass = gtk_entry_get_text (GTK_ENTRY (passwordVerificationBox));
+            if(strcmp(passWord,verificationPass) == 0)
+                passwordsMatch = TRUE;
             
+            if (passwordsMatch == FALSE) {
+                strcpy(statusMessage,"Passwords didn't match");
+                error = TRUE;
+            } else if(passwordsMatch == TRUE) {
+                snprintf(userPass,MAX_PASS_SIZE,"%s",passWord);
+            
+                gtk_entry_set_text(GTK_ENTRY (passwordBox), "");
+                OPENSSL_cleanse((void *)passWord, strlen(passWord));
+                gtk_entry_set_text(GTK_ENTRY (passwordBox), passWord);
+                
+                gtk_entry_set_text(GTK_ENTRY (passwordVerificationBox), "");
+                OPENSSL_cleanse((void *)verificationPass, strlen(verificationPass));
+                gtk_entry_set_text(GTK_ENTRY (passwordVerificationBox), verificationPass);
+            }
+        }
+    } else if (strcmp(encryptOrDecrypt,"decrypt") == 0) {
+        snprintf(userPass,MAX_PASS_SIZE,"%s",passWord);
+    
+        gtk_entry_set_text(GTK_ENTRY (passwordBox), "");
+        OPENSSL_cleanse((void *)passWord, strlen(passWord));
+        gtk_entry_set_text(GTK_ENTRY (passwordBox), passWord);
+        
+        if(strlen(verificationPass)) {
             gtk_entry_set_text(GTK_ENTRY (passwordVerificationBox), "");
             OPENSSL_cleanse((void *)verificationPass, strlen(verificationPass));
             gtk_entry_set_text(GTK_ENTRY (passwordVerificationBox), verificationPass);
@@ -823,121 +837,15 @@ void on_encryptButton_clicked(GtkWidget *wid, gpointer ptr)
     }
     
     if(error != TRUE) {
-        action = 'e';
-        strcpy(statusMessage,"Starting encryption...");
-        workThread();
-    }
-    
-    OPENSSL_cleanse((void *)userPass, strlen(userPass));
-}
-
-void on_decryptButton_clicked(GtkWidget *wid, gpointer ptr)
-{
-    keyFileEntryEnable();
-    otpFileEntryEnable();
-    
-    gboolean error = FALSE;
-    
-    inputFilePath = gtk_entry_get_text (GTK_ENTRY (inputFileNameBox));
-    outputFilePath = gtk_entry_get_text (GTK_ENTRY (outputFileNameBox));
-    passWord = gtk_entry_get_text (GTK_ENTRY (passwordBox));
-    verificationPass = gtk_entry_get_text (GTK_ENTRY (passwordVerificationBox));
-    keyFilePath = gtk_entry_get_text (GTK_ENTRY (keyFileNameBox));
-    otpFilePath = gtk_entry_get_text (GTK_ENTRY (otpFileNameBox));
-    keySizeComboBoxText = gtk_combo_box_text_get_active_text (GTK_COMBO_BOX_TEXT (keySizeComboBox));
-    macBufSizeComboBoxText = gtk_combo_box_text_get_active_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox));
-    msgBufSizeComboBoxText = gtk_combo_box_text_get_active_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox));
-    
-    if(strlen(inputFilePath)) {
-        optSt.inputFileGiven = true;
-    } else {
-        strcpy(statusMessage,"Need input file...");
-        error = TRUE;
-    }
-    
-    if(strlen(outputFilePath)) {
-        optSt.outputFileGiven = true;
-    } else {
-        strcpy(statusMessage,"Need output file...");
-        error = TRUE;
-    }
-    
-    nFactor = gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(nFactorTextBox));
-    rFactor = gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(rFactorTextBox));
-    pFactor = gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(pFactorTextBox));
-    
-    keyBufSize = atol(keySizeComboBoxText) * sizeof(uint8_t) * getBufSizeMultiple((char *)keySizeComboBoxText);
-    yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
-    
-    genHmacBufSize = atol(macBufSizeComboBoxText) * sizeof(uint8_t) * getBufSizeMultiple((char *)macBufSizeComboBoxText);
-    makeMultipleOf(&genHmacBufSize,sizeof(cryptint_t));
-    
-    msgBufSize = atol(msgBufSizeComboBoxText) * sizeof(uint8_t) * getBufSizeMultiple((char *)msgBufSizeComboBoxText);
-    makeMultipleOf(&msgBufSize,sizeof(cryptint_t));
-    
-    if(strlen(passWord)) {
-        optSt.passWordGiven = true;
-    } else {
-        optSt.passWordGiven = false;
-    }
-    
-    if(!strcmp(inputFilePath,outputFilePath)) {
-        strcpy(statusMessage,"Input and output file are the same...");
-        error = TRUE;
-    }
-    
-    if(strlen(keyFilePath)) {
-        optSt.keyFileGiven = true;
-        strcpy(keyFileName,keyFilePath);
-        keyFileSize = getFileSize(keyFileName);
-        keyBufSize = keyFileSize;
-        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
-    } else {
-        optSt.keyFileGiven = false;
-    }
-    
-    if(strlen(otpFilePath)) {
-        optSt.oneTimePad = true;
-        yaxaSaltSize = 0;
-        strcpy(otpInFileName,otpFilePath);
-        snprintf(otpOutFileName, NAME_MAX, "%s", otpFilePath);
-        sprintf(otpOutFileName,"%s.pad", outputFilePath);
-    } else {
-        optSt.oneTimePad = false;
-    }
-    
-    if((optSt.passWordGiven && optSt.keyFileGiven) || (optSt.passWordGiven && optSt.oneTimePad)) {
-        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
-    } else if (optSt.oneTimePad || optSt.keyFileGiven) {
-        yaxaSaltSize = 0;
-    }
-    
-    if(!optSt.passWordGiven && !optSt.keyFileGiven && !optSt.oneTimePad) {
-        strcpy(statusMessage,"Need at least password, keyfile or one-time-pad");
-        error = TRUE;
-    }
-    
-    snprintf(userPass,MAX_PASS_SIZE,"%s",passWord);
-    
-    gtk_entry_set_text(GTK_ENTRY (passwordBox), "");
-    OPENSSL_cleanse((void *)passWord, strlen(passWord));
-    gtk_entry_set_text(GTK_ENTRY (passwordBox), passWord);
-    
-    if(strlen(verificationPass)) {
-        gtk_entry_set_text(GTK_ENTRY (passwordVerificationBox), "");
-        OPENSSL_cleanse((void *)verificationPass, strlen(verificationPass));
-        gtk_entry_set_text(GTK_ENTRY (passwordVerificationBox), verificationPass);
-    }
-    
-    if(optSt.keyFileGiven && optSt.oneTimePad) {
-        strcpy(statusMessage,"Can only use keyfile OR one-time-pad");
-        error = TRUE;
-    }
-        
-    if(error != TRUE) {
-        action = 'd';
-        strcpy(statusMessage,"Starting encryption...");
-        workThread();
+        if(strcmp(encryptOrDecrypt,"encrypt") == 0) {
+            action = 'e';
+            strcpy(statusMessage,"Starting encryption...");
+            workThread();
+        } else if (strcmp(encryptOrDecrypt,"decrypt") == 0) {
+            action = 'd';
+            strcpy(statusMessage,"Starting decryption...");
+            workThread();
+        }
     }
     
     OPENSSL_cleanse((void *)userPass, strlen(userPass));
