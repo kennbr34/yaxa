@@ -113,17 +113,17 @@ int main(int argc, char *argv[])
     GtkWidget *scryptWorkFactorsLabel = gtk_label_new ("scrypt work factors:");
     
     GtkWidget *nFactorLabel = gtk_label_new ("N Factor");
-    GtkAdjustment *nFactorSpinButtonAdj = gtk_adjustment_new (DEFAULT_SCRYPT_N, DEFAULT_SCRYPT_N, DEFAULT_SCRYPT_N * 8, 1048576, 0, 0);
+    GtkAdjustment *nFactorSpinButtonAdj = gtk_adjustment_new (DEFAULT_SCRYPT_N, 0, DEFAULT_SCRYPT_N * 8, 1048576, 0, 0);
     nFactorTextBox = gtk_spin_button_new (GTK_ADJUSTMENT (nFactorSpinButtonAdj), 0, 0);
     gtk_widget_set_tooltip_text (nFactorTextBox, "This is the N factor that will be used by scrypt");
     
     GtkWidget *rFactorLabel = gtk_label_new ("r Factor");
-    GtkAdjustment *rFactorSpinButtonAdj = gtk_adjustment_new (DEFAULT_SCRYPT_R, -10, 10, 1, 0, 0);
+    GtkAdjustment *rFactorSpinButtonAdj = gtk_adjustment_new (DEFAULT_SCRYPT_R, 0, 10, 1, 0, 0);
     rFactorTextBox = gtk_spin_button_new (GTK_ADJUSTMENT (rFactorSpinButtonAdj), 0, 0);
     gtk_widget_set_tooltip_text (rFactorTextBox, "This is the r factor that will be used by scrypt");
     
     GtkWidget *pFactorLabel = gtk_label_new ("p Factor");
-    GtkAdjustment *pFactorSpinButtonAdj = gtk_adjustment_new (DEFAULT_SCRYPT_P, -10, 10, 1, 0, 0);
+    GtkAdjustment *pFactorSpinButtonAdj = gtk_adjustment_new (DEFAULT_SCRYPT_P, 0, 10, 1, 0, 0);
     pFactorTextBox = gtk_spin_button_new (GTK_ADJUSTMENT (pFactorSpinButtonAdj), 0, 0);
     gtk_widget_set_tooltip_text (pFactorTextBox, "This is the p factor that will be used by scrypt");
     
@@ -746,32 +746,18 @@ void on_encryptButton_clicked(GtkWidget *wid, gpointer ptr)
         error = TRUE;
     }
         
-    if(gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(nFactorTextBox)) != DEFAULT_SCRYPT_N) {
-        nFactor = gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(nFactorTextBox));
-    }
+    nFactor = gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(nFactorTextBox));
+    rFactor = gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(rFactorTextBox));
+    pFactor = gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(pFactorTextBox));
     
-    if(gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(rFactorTextBox)) != DEFAULT_SCRYPT_R) {
-        rFactor = gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(rFactorTextBox));
-    }
+    keyBufSize = atol(keySizeComboBoxText) * sizeof(uint8_t) * getBufSizeMultiple((char *)keySizeComboBoxText);
+    yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
+
+    genHmacBufSize = atol(macBufSizeComboBoxText) * sizeof(uint8_t) * getBufSizeMultiple((char *)macBufSizeComboBoxText);
+    makeMultipleOf(&genHmacBufSize,sizeof(cryptint_t));
     
-    if(gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(pFactorTextBox)) != DEFAULT_SCRYPT_P) {
-        pFactor = gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(pFactorTextBox));
-    }
-    
-    if(strcmp(keySizeComboBoxText,"32 Mb") != 0) {
-        keyBufSize = atol(keySizeComboBoxText) * sizeof(uint8_t) * getBufSizeMultiple((char *)keySizeComboBoxText);
-        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
-    }
-    
-    if(strcmp(macBufSizeComboBoxText,"1 Mb") != 0) {
-        genHmacBufSize = atol(macBufSizeComboBoxText) * sizeof(uint8_t) * getBufSizeMultiple((char *)macBufSizeComboBoxText);
-        makeMultipleOf(&genHmacBufSize,sizeof(cryptint_t));
-    }
-    
-    if(strcmp(msgBufSizeComboBoxText,"1 Mb") != 0) {
-         msgBufSize = atol(msgBufSizeComboBoxText) * sizeof(uint8_t) * getBufSizeMultiple((char *)msgBufSizeComboBoxText);
-         makeMultipleOf(&msgBufSize,sizeof(cryptint_t));
-    }
+    msgBufSize = atol(msgBufSizeComboBoxText) * sizeof(uint8_t) * getBufSizeMultiple((char *)msgBufSizeComboBoxText);
+    makeMultipleOf(&msgBufSize,sizeof(cryptint_t));
     
     if(strlen(passWord)) {
         optSt.passWordGiven = true;
@@ -803,6 +789,11 @@ void on_encryptButton_clicked(GtkWidget *wid, gpointer ptr)
         yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
     } else if (optSt.oneTimePad || optSt.keyFileGiven) {
         yaxaSaltSize = 0;
+    }
+    
+    if(!optSt.passWordGiven && !optSt.keyFileGiven && !optSt.oneTimePad) {
+        strcpy(statusMessage,"Need at least password, keyfile or one-time-pad");
+        error = TRUE;
     }
     
     if(optSt.passWordGiven) {
@@ -838,11 +829,6 @@ void on_encryptButton_clicked(GtkWidget *wid, gpointer ptr)
     }
     
     OPENSSL_cleanse((void *)userPass, strlen(userPass));
-    //OPENSSL_cleanse((void *)keyFileName, strlen(keyFileName));
-    //OPENSSL_cleanse((void *)otpInFileName, strlen(otpInFileName));
-    //OPENSSL_cleanse((void *)nFactorTextBox, sizeof(nFactorTextBox));
-    //OPENSSL_cleanse((void *)rFactorTextBox, sizeof(rFactorTextBox));
-    //OPENSSL_cleanse((void *)pFactorTextBox, sizeof(pFactorTextBox));
 }
 
 void on_decryptButton_clicked(GtkWidget *wid, gpointer ptr)
@@ -876,32 +862,18 @@ void on_decryptButton_clicked(GtkWidget *wid, gpointer ptr)
         error = TRUE;
     }
     
-    if(gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(nFactorTextBox)) != DEFAULT_SCRYPT_N) {
-        nFactor = gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(nFactorTextBox));
-    }
+    nFactor = gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(nFactorTextBox));
+    rFactor = gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(rFactorTextBox));
+    pFactor = gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(pFactorTextBox));
     
-    if(gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(rFactorTextBox)) != DEFAULT_SCRYPT_R) {
-        rFactor = gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(rFactorTextBox));
-    }
+    keyBufSize = atol(keySizeComboBoxText) * sizeof(uint8_t) * getBufSizeMultiple((char *)keySizeComboBoxText);
+    yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
     
-    if(gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(pFactorTextBox)) != DEFAULT_SCRYPT_P) {
-        pFactor = gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(pFactorTextBox));
-    }
+    genHmacBufSize = atol(macBufSizeComboBoxText) * sizeof(uint8_t) * getBufSizeMultiple((char *)macBufSizeComboBoxText);
+    makeMultipleOf(&genHmacBufSize,sizeof(cryptint_t));
     
-    if(strcmp(keySizeComboBoxText,"32 Mb") != 0) {
-        keyBufSize = atol(keySizeComboBoxText) * sizeof(uint8_t) * getBufSizeMultiple((char *)keySizeComboBoxText);
-        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
-    }
-    
-    if(strcmp(macBufSizeComboBoxText,"1 Mb") != 0) {
-        genHmacBufSize = atol(macBufSizeComboBoxText) * sizeof(uint8_t) * getBufSizeMultiple((char *)macBufSizeComboBoxText);
-        makeMultipleOf(&genHmacBufSize,sizeof(cryptint_t));
-    }
-    
-    if(strcmp(msgBufSizeComboBoxText,"1 Mb") != 0) {
-         msgBufSize = atol(msgBufSizeComboBoxText) * sizeof(uint8_t) * getBufSizeMultiple((char *)msgBufSizeComboBoxText);
-         makeMultipleOf(&msgBufSize,sizeof(cryptint_t));
-    }
+    msgBufSize = atol(msgBufSizeComboBoxText) * sizeof(uint8_t) * getBufSizeMultiple((char *)msgBufSizeComboBoxText);
+    makeMultipleOf(&msgBufSize,sizeof(cryptint_t));
     
     if(strlen(passWord)) {
         optSt.passWordGiven = true;
@@ -940,6 +912,11 @@ void on_decryptButton_clicked(GtkWidget *wid, gpointer ptr)
         yaxaSaltSize = 0;
     }
     
+    if(!optSt.passWordGiven && !optSt.keyFileGiven && !optSt.oneTimePad) {
+        strcpy(statusMessage,"Need at least password, keyfile or one-time-pad");
+        error = TRUE;
+    }
+    
     snprintf(userPass,MAX_PASS_SIZE,"%s",passWord);
     
     gtk_entry_set_text(GTK_ENTRY (passwordBox), "");
@@ -964,11 +941,6 @@ void on_decryptButton_clicked(GtkWidget *wid, gpointer ptr)
     }
     
     OPENSSL_cleanse((void *)userPass, strlen(userPass));
-    //OPENSSL_cleanse((void *)keyFileName, strlen(keyFileName));
-    //OPENSSL_cleanse((void *)otpInFileName, strlen(otpInFileName));
-    //OPENSSL_cleanse((void *)nFactorTextBox, sizeof(nFactorTextBox));
-    //OPENSSL_cleanse((void *)rFactorTextBox, sizeof(rFactorTextBox));
-    //OPENSSL_cleanse((void *)pFactorTextBox, sizeof(pFactorTextBox));
 }
 
 static void inputFileSelect (GtkWidget *wid, gpointer ptr)
