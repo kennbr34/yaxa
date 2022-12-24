@@ -650,6 +650,7 @@ void on_cryptButton_clicked(GtkWidget *wid, gpointer ptr) {
     inputFilePath = gtk_entry_get_text (GTK_ENTRY (inputFileNameBox));
     outputFilePath = gtk_entry_get_text (GTK_ENTRY (outputFileNameBox));
     passWord = gtk_entry_get_text (GTK_ENTRY (passwordBox));
+    verificationPass = gtk_entry_get_text (GTK_ENTRY (passwordVerificationBox));
     keyFilePath = gtk_entry_get_text (GTK_ENTRY (keyFileNameBox));
     otpFilePath = gtk_entry_get_text (GTK_ENTRY (otpFileNameBox));
     keySizeComboBoxText = gtk_combo_box_text_get_active_text (GTK_COMBO_BOX_TEXT (keySizeComboBox));
