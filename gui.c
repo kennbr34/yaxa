@@ -6,6 +6,7 @@
 #include "crypt.c"
 #include "misc.c"
 #include "buffers.c"
+#include "workthread.c"
 
 void on_cryptButton_clicked(GtkWidget *wid, gpointer ptr);
 static void inputFileSelect (GtkWidget *wid, gpointer ptr);
@@ -20,7 +21,6 @@ void keyFileEntryEnable (void);
 static gboolean updateStatus(gpointer user_data);
 static gboolean updateProgress(gpointer user_data);
 static gboolean updateOverallProgress(gpointer user_data);
-int workThread();
 
 GtkWidget *inputFileNameBox;
 GtkWidget *outputFileNameBox;
@@ -49,18 +49,6 @@ const char *verificationPass;
 const char *keySizeComboBoxText;
 const char *macBufSizeComboBoxText;
 const char *msgBufSizeComboBoxText;
-
-char action = 0;
-
-GtkWidget *statusBar;
-guint statusContextID;
-
-GtkWidget *overallProgressBar;
-double *overallProgressFraction;
-
-GtkWidget *progressBar;
-
-struct optionsStruct optSt = {0};
 
 int main(int argc, char *argv[])
 {
@@ -359,259 +347,6 @@ int main(int argc, char *argv[])
     exit(EXIT_SUCCESS);
 }
 
-int workThread()
-{
-    pid_t p = fork();
-    if(p) return 0;
-            
-    FILE *inFile = fopen(inputFilePath, "rb");
-    if (inFile == NULL) {
-        printFileError(inputFilePath, errno);
-        exit(EXIT_FAILURE);
-    }
-    FILE *outFile = fopen(outputFilePath, "wb+");
-    if (outFile == NULL) {
-        printFileError(outputFilePath, errno);
-        exit(EXIT_FAILURE);
-    }
-    
-    FILE *otpInFile = NULL;
-    FILE *otpOutFile = NULL;
-
-    cryptint_t fileSize;
-    
-    counterInt = 0;
-    keyInt = 0;
-    k = 0;
-
-    if(action == 'e') {
-        strcpy(statusMessage,"Generating salt...");
-        *overallProgressFraction = .1;
-        genYaxaSalt();
-    } else if(action == 'd') {
-        strcpy(statusMessage,"Reading salt...");
-        *overallProgressFraction = .1;
-        /*Read yaxaSalt from head of cipher-text*/
-        if (freadWErrCheck(yaxaSalt, sizeof(*yaxaSalt), yaxaSaltSize, inFile) != 0) {
-            printSysError(returnVal);
-            printError("Could not read salt");
-            exit(EXIT_FAILURE);
-        }
-    }
-        
-    if(action == 'd') {
-        strcpy(statusMessage,"Reading pass keyed-hash...");
-        *overallProgressFraction = .2;
-        /*Get passKeyedHashFromFile*/
-        if (freadWErrCheck(passKeyedHashFromFile, sizeof(*passKeyedHashFromFile), PASS_KEYED_HASH_SIZE, inFile) != 0) {
-            printSysError(returnVal);
-            printError("Could not read password hash");
-            exit(EXIT_FAILURE);
-        }
-    }
-        
-    if(optSt.keyFileGiven) {
-        
-        FILE *keyFile = fopen(keyFileName,"rb");
-        if (keyFile == NULL) {
-            printFileError(keyFileName, errno);
-            exit(EXIT_FAILURE);
-        }
-        
-        if(!optSt.passWordGiven) {
-            if(freadWErrCheck(yaxaKey,1,sizeof(*yaxaKey) * keyBufSize,keyFile) != 0) {
-                printSysError(returnVal);
-                exit(EXIT_FAILURE);
-            }
-            fclose(keyFile);
-        } else {
-            if(freadWErrCheck(yaxaKey,1,sizeof(*yaxaKey) * (keyFileSize),keyFile) != 0) {
-                printSysError(returnVal);
-                exit(EXIT_FAILURE);
-            }
-            fclose(keyFile);
-            keyBufSize = HMAC_KEY_SIZE;
-            strcpy(statusMessage,"Generating encryption key...");
-            *overallProgressFraction = .2;
-            genYaxaKey();
-            keyBufSize = keyFileSize;
-        }
-        
-    } else if(optSt.oneTimePad) {
-        
-        keyBufSize = HMAC_KEY_SIZE;
-        
-        otpInFile = fopen(otpInFileName,"rb");
-        if (otpInFile == NULL) {
-            printFileError(otpInFileName, errno);
-            exit(EXIT_FAILURE);
-        }
-        
-        if(action == 'e') {
-            otpOutFile = fopen(otpOutFileName,"wb");
-        }
-        
-        if(optSt.passWordGiven) {
-            strcpy(statusMessage,"Generating encryption key...");
-            *overallProgressFraction = .2;
-            genYaxaKey();
-        } else {
-            if(freadWErrCheck(yaxaKey,sizeof(*yaxaKey),HMAC_KEY_SIZE,otpInFile) != 0) {
-                printSysError(returnVal);
-                exit(EXIT_FAILURE);
-            }
-            if(action == 'e') {
-                if(fwriteWErrCheck(yaxaKey,sizeof(*yaxaKey),HMAC_KEY_SIZE,otpOutFile) != 0) {
-                    printSysError(returnVal);
-                    exit(EXIT_FAILURE);
-                }
-            }
-        }
-        
-    } else {
-        strcpy(statusMessage,"Generating encryption key...");
-        *overallProgressFraction = .2;
-        genYaxaKey();
-    }
-    
-    strcpy(statusMessage,"Generating counter start...");
-    genCtrStart();
-    
-    strcpy(statusMessage,"Generating nonce...");
-    genNonce();
-    
-    strcpy(statusMessage,"Generation auth key...");
-    *overallProgressFraction = .3;
-    genHMACKey();
-    
-    strcpy(statusMessage,"Password keyed-hash...");
-    *overallProgressFraction = .4;
-    genPassTag();
-    
-    if(action == 'd') {
-        strcpy(statusMessage,"Verifying password...");
-        *overallProgressFraction = .6;
-        if (CRYPTO_memcmp(passKeyedHash, passKeyedHashFromFile, sizeof(*passKeyedHashFromFile) * PASS_KEYED_HASH_SIZE) != 0) {
-            printf("Wrong password\n");
-            strcpy(statusMessage,"Wrong password");
-            exit(EXIT_FAILURE);
-        }
-    }
-
-    if(action == 'e') {
-        fileSize = getFileSize(inputFilePath);
-        
-        strcpy(statusMessage,"Writing salt...");
-        *overallProgressFraction = .5;
-        /*Prepend salt to head of file*/
-        if (fwriteWErrCheck(yaxaSalt, sizeof(*yaxaSalt), yaxaSaltSize, outFile) != 0) {
-            printSysError(returnVal);
-            printError("Could not write salt");
-            exit(EXIT_FAILURE);
-        }
-
-        strcpy(statusMessage,"Writing password keyed-hash...");
-        *overallProgressFraction = .6;
-        /*Write passKeyedHash to head of file next to salt*/
-        if (fwriteWErrCheck(passKeyedHash, sizeof(*passKeyedHash), PASS_KEYED_HASH_SIZE, outFile) != 0) {
-            printSysError(returnVal);
-            printError("Could not write password hash");
-            exit(EXIT_FAILURE);
-        }
-
-        strcpy(statusMessage,"Encrypting...");
-        *overallProgressFraction = .7;
-    } else if(action == 'd') {
-        /*Get filesize, discounting the salt and passKeyedHash*/
-        fileSize = getFileSize(inputFilePath) - (yaxaSaltSize + PASS_KEYED_HASH_SIZE);
-
-        /*Move file position to the start of the MAC*/
-        fseek(inFile, (fileSize + yaxaSaltSize + PASS_KEYED_HASH_SIZE) - MAC_SIZE, SEEK_SET);
-
-        if (freadWErrCheck(fileMAC, sizeof(*fileMAC), MAC_SIZE, inFile) != 0) {
-            printSysError(returnVal);
-            printError("Could not read MAC");
-            exit(EXIT_FAILURE);
-        }
-
-        /*Reset file position to beginning of file*/
-        rewind(inFile);
-
-        strcpy(statusMessage,"Authenticating data...");
-        *overallProgressFraction = .7;
-        genHMAC(inFile, (fileSize + (yaxaSaltSize + PASS_KEYED_HASH_SIZE)) - MAC_SIZE);
-
-        /*Verify MAC*/
-        if (CRYPTO_memcmp(fileMAC, generatedMAC, sizeof(*generatedMAC) * MAC_SIZE) != 0) {
-            printf("Message authentication failed\n");
-            strcpy(statusMessage,"Authentication failure");
-            exit(EXIT_FAILURE);
-        }
-
-        OPENSSL_cleanse(hmacKey, sizeof(*hmacKey) * HMAC_KEY_SIZE);
-
-        /*Reset file posiiton to beginning of cipher-text after the salt and pass tag*/
-        fseek(inFile, yaxaSaltSize + PASS_KEYED_HASH_SIZE, SEEK_SET);
-        
-        strcpy(statusMessage,"Decrypting...");
-        *overallProgressFraction = .8;
-    }
-    
-    if(action == 'e') {
-        /*Encrypt file and write it out*/
-        if(optSt.oneTimePad) {
-            doCrypt(inFile, outFile, fileSize, otpInFile, otpOutFile);
-        } else {
-            doCrypt(inFile, outFile, fileSize, NULL, NULL);
-        }
-    } else if (action == 'd') {
-        /*Now decrypt the cipher-text, disocounting the size of the MAC*/        
-        if(optSt.oneTimePad) {
-            doCrypt(inFile, outFile, fileSize - MAC_SIZE, otpInFile, NULL);
-        } else {
-            doCrypt(inFile, outFile, fileSize - MAC_SIZE, NULL, NULL);
-        }
-    }
-
-    if(fclose(inFile) != 0) {
-        printSysError(errno);
-        printError("Error closing file");
-        exit(EXIT_FAILURE);
-    }
-
-    OPENSSL_cleanse(hmacKey, sizeof(*hmacKey) * HMAC_KEY_SIZE);
-
-    if(action == 'e') {
-        /*Write the MAC to the end of the file*/
-        if (fwriteWErrCheck(generatedMAC, sizeof(*generatedMAC), MAC_SIZE, outFile) != 0) {
-            printSysError(returnVal);
-            printError("Could not write MAC");
-            exit(EXIT_FAILURE);
-        }
-    }
-
-    strcpy(statusMessage,"Saving file...");
-    *overallProgressFraction = .9;
-    
-    if(fclose(outFile) != 0) {
-        printSysError(errno);
-        printError("Could not close file");
-        exit(EXIT_FAILURE);
-    }
-    
-    if(action == 'e') {
-        strcpy(statusMessage,"File encrypted");
-        *overallProgressFraction = 1;
-    } else if (action == 'd') {
-        strcpy(statusMessage,"File decrypted");
-        *overallProgressFraction = 1;
-    }
-    
-    exit(EXIT_SUCCESS);
-    
-    return 0;
-}
-
 static gboolean updateStatus(gpointer user_data)
 {
     statusContextID = gtk_statusbar_get_context_id (GTK_STATUSBAR (statusBar), "Statusbar");
@@ -659,6 +394,7 @@ void on_cryptButton_clicked(GtkWidget *wid, gpointer ptr) {
     
     if(strlen(inputFilePath)) {
         optSt.inputFileGiven = true;
+        strcpy(inputFileName,inputFilePath);
     } else {
         strcpy(statusMessage,"Need input file...");
         error = TRUE;
@@ -666,6 +402,7 @@ void on_cryptButton_clicked(GtkWidget *wid, gpointer ptr) {
     
     if(strlen(outputFilePath)) {
         optSt.outputFileGiven = true;
+        strcpy(outputFileName,outputFilePath);
     } else {
         strcpy(statusMessage,"Need output file...");
         error = TRUE;
@@ -768,13 +505,11 @@ void on_cryptButton_clicked(GtkWidget *wid, gpointer ptr) {
     
     if(error != TRUE) {
         if(strcmp(encryptOrDecrypt,"encrypt") == 0) {
-            action = 'e';
             strcpy(statusMessage,"Starting encryption...");
-            workThread();
+            workThread('e',optSt);
         } else if (strcmp(encryptOrDecrypt,"decrypt") == 0) {
-            action = 'd';
             strcpy(statusMessage,"Starting decryption...");
-            workThread();
+            workThread('d',optSt);
         }
     }
     

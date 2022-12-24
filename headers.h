@@ -19,6 +19,10 @@
 #include <sys/mman.h>
 #include <getopt.h>
 #include <ctype.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
+
 
 /*Define the size of the integer to be used in XOR operations*/
 

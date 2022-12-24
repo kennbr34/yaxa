@@ -62,3 +62,14 @@ char *statusMessage;
 
 uint8_t *otpBuffer = NULL;
 
+struct optionsStruct optSt = {0};
+
+#ifdef gui
+GtkWidget *statusBar;
+guint statusContextID;
+
+GtkWidget *overallProgressBar;
+double *overallProgressFraction;
+
+GtkWidget *progressBar;
+#endif

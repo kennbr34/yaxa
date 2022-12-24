@@ -17,3 +17,4 @@ uint8_t printSyntax(char *arg);                                              /*P
 void signalHandler(int signum);                                          /*Signal handler for Ctrl+C*/
 cryptint_t yaxa(cryptint_t messageInt);                    /*YAXA encryption/decryption function*/
 void makeMultipleOf(size_t *numberToChange, size_t multiple);
+int workThread(char action, struct optionsStruct optSt);

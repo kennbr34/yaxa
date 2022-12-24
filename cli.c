@@ -6,6 +6,7 @@
 #include "crypt.c"
 #include "misc.c"
 #include "buffers.c"
+#include "workthread.c"
 
 uint8_t printSyntax(char *arg)
 {
@@ -389,208 +390,14 @@ int main(int argc, char *argv[])
     allocateBuffers();
 
     OpenSSL_add_all_algorithms();
-
-    FILE *inFile = fopen(inputFileName, "rb");
-    if (inFile == NULL) {
-        printFileError(inputFileName, errno);
-        exit(EXIT_FAILURE);
-    }
-    FILE *outFile = fopen(outputFileName, "wb+");
-    if (outFile == NULL) {
-        printFileError(outputFileName, errno);
-        exit(EXIT_FAILURE);
-    }
     
-    FILE *otpInFile = NULL;
-    FILE *otpOutFile = NULL;
-
-    cryptint_t fileSize;
-    
-    counterInt = 0;
-    keyInt = 0;
-
     if(optSt.encrypt) {
-        genYaxaSalt();
+        workThread('e',optSt);
     } else if(optSt.decrypt) {
-        /*Read yaxaSalt from head of cipher-text*/
-        if (freadWErrCheck(yaxaSalt, sizeof(*yaxaSalt), yaxaSaltSize, inFile) != 0) {
-            printSysError(returnVal);
-            printError("Could not read salt");
-            exit(EXIT_FAILURE);
-        }
-    }
-        
-    if(optSt.decrypt) {
-        /*Get passKeyedHashFromFile*/
-        if (freadWErrCheck(passKeyedHashFromFile, sizeof(*passKeyedHashFromFile), PASS_KEYED_HASH_SIZE, inFile) != 0) {
-            printSysError(returnVal);
-            printError("Could not read password hash");
-            exit(EXIT_FAILURE);
-        }
-    }
-        
-    if(optSt.keyFileGiven) {
-        
-        FILE *keyFile = fopen(keyFileName,"rb");
-        if (keyFile == NULL) {
-            printFileError(keyFileName, errno);
-            exit(EXIT_FAILURE);
-        }
-        
-        if(!optSt.passWordGiven) {
-            if(freadWErrCheck(yaxaKey,1,sizeof(*yaxaKey) * keyBufSize,keyFile) != 0) {
-                printSysError(returnVal);
-                exit(EXIT_FAILURE);
-            }
-            fclose(keyFile);
-        } else {
-            if(freadWErrCheck(yaxaKey,1,sizeof(*yaxaKey) * (keyFileSize),keyFile) != 0) {
-                printSysError(returnVal);
-                exit(EXIT_FAILURE);
-            }
-            fclose(keyFile);
-            keyBufSize = HMAC_KEY_SIZE;
-            genYaxaKey();
-            keyBufSize = keyFileSize;
-        }
-        
-    } else if(optSt.oneTimePad) {
-        
-        keyBufSize = HMAC_KEY_SIZE;
-        
-        otpInFile = fopen(otpInFileName,"rb");
-        if (otpInFile == NULL) {
-            printFileError(otpInFileName, errno);
-            exit(EXIT_FAILURE);
-        }
-        
-        if(optSt.encrypt) {
-            otpOutFile = fopen(otpOutFileName,"wb");
-        }
-        
-        if(optSt.passWordGiven) {;
-            genYaxaKey();
-        } else {
-            if(freadWErrCheck(yaxaKey,sizeof(*yaxaKey),HMAC_KEY_SIZE,otpInFile) != 0) {
-                printSysError(returnVal);
-                exit(EXIT_FAILURE);
-            }
-            if(optSt.encrypt) {
-                if(fwriteWErrCheck(yaxaKey,sizeof(*yaxaKey),HMAC_KEY_SIZE,otpOutFile) != 0) {
-                    printSysError(returnVal);
-                    exit(EXIT_FAILURE);
-                }
-            }
-        }
-        
-    } else {
-        genYaxaKey();
+        workThread('d',optSt);
     }
     
-    genCtrStart();
-    
-    genNonce();
-    
-    genHMACKey();
-    
-    genPassTag();
-    
-    if(optSt.decrypt) {
-        if (CRYPTO_memcmp(passKeyedHash, passKeyedHashFromFile, sizeof(*passKeyedHashFromFile) * PASS_KEYED_HASH_SIZE) != 0) {
-            printf("Wrong password\n");
-            strcpy(statusMessage,"Wrong password");
-            exit(EXIT_FAILURE);
-        }
-    }
-
-    if(optSt.encrypt) {
-        fileSize = getFileSize(inputFileName);
-        
-        /*Prepend salt to head of file*/
-        if (fwriteWErrCheck(yaxaSalt, sizeof(*yaxaSalt), yaxaSaltSize, outFile) != 0) {
-            printSysError(returnVal);
-            printError("Could not write salt");
-            exit(EXIT_FAILURE);
-        }
-
-        /*Write passKeyedHash to head of file next to salt*/
-        if (fwriteWErrCheck(passKeyedHash, sizeof(*passKeyedHash), PASS_KEYED_HASH_SIZE, outFile) != 0) {
-            printSysError(returnVal);
-            printError("Could not write password hash");
-            exit(EXIT_FAILURE);
-        }
-
-    } else if(optSt.decrypt) {
-        /*Get filesize, discounting the salt and passKeyedHash*/
-        fileSize = getFileSize(inputFileName) - (yaxaSaltSize + PASS_KEYED_HASH_SIZE);
-
-        /*Move file position to the start of the MAC*/
-        fseek(inFile, (fileSize + yaxaSaltSize + PASS_KEYED_HASH_SIZE) - MAC_SIZE, SEEK_SET);
-
-        if (freadWErrCheck(fileMAC, sizeof(*fileMAC), MAC_SIZE, inFile) != 0) {
-            printSysError(returnVal);
-            printError("Could not read MAC");
-            exit(EXIT_FAILURE);
-        }
-
-        /*Reset file position to beginning of file*/
-        rewind(inFile);
-
-        genHMAC(inFile, (fileSize + (yaxaSaltSize + PASS_KEYED_HASH_SIZE)) - MAC_SIZE);
-
-        /*Verify MAC*/
-        if (CRYPTO_memcmp(fileMAC, generatedMAC, sizeof(*generatedMAC) * MAC_SIZE) != 0) {
-            printf("Message authentication failed\n");
-            strcpy(statusMessage,"Authentication failure");
-            exit(EXIT_FAILURE);
-        }
-
-        OPENSSL_cleanse(hmacKey, sizeof(*hmacKey) * HMAC_KEY_SIZE);
-
-        /*Reset file posiiton to beginning of cipher-text after the salt and pass tag*/
-        fseek(inFile, yaxaSaltSize + PASS_KEYED_HASH_SIZE, SEEK_SET);
-    }
-    
-    if(optSt.encrypt) {
-        /*Encrypt file and write it out*/
-        if(optSt.oneTimePad) {
-            doCrypt(inFile, outFile, fileSize, otpInFile, otpOutFile);
-        } else {
-            doCrypt(inFile, outFile, fileSize, NULL, NULL);
-        }
-    } else if (optSt.decrypt) {
-        /*Now decrypt the cipher-text, disocounting the size of the MAC*/        
-        if(optSt.oneTimePad) {
-            doCrypt(inFile, outFile, fileSize - MAC_SIZE, otpInFile, NULL);
-        } else {
-            doCrypt(inFile, outFile, fileSize - MAC_SIZE, NULL, NULL);
-        }
-    }
-
-    if(fclose(inFile) != 0) {
-        printSysError(errno);
-        printError("Error closing file");
-        exit(EXIT_FAILURE);
-    }
-
-    OPENSSL_cleanse(hmacKey, sizeof(*hmacKey) * HMAC_KEY_SIZE);
-
-    if(optSt.encrypt) {
-        /*Write the MAC to the end of the file*/
-        if (fwriteWErrCheck(generatedMAC, sizeof(*generatedMAC), MAC_SIZE, outFile) != 0) {
-            printSysError(returnVal);
-            printError("Could not write MAC");
-            exit(EXIT_FAILURE);
-        }
-    }
-    
-    if(fclose(outFile) != 0) {
-        printSysError(errno);
-        printError("Could not close file");
-        exit(EXIT_FAILURE);
-    }
-    
-    exit(EXIT_SUCCESS);
+    wait(NULL);
 
     return EXIT_SUCCESS;
 }
