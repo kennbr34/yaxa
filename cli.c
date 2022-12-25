@@ -111,7 +111,7 @@ char *getPass(const char *prompt, char *paddedPass)
 void parseOptions(
 int argc,
 char *argv[],
-struct optionsStruct *optSt
+struct dataStruct *st
 ) {
     int c;
     int errflg = 0;
@@ -145,10 +145,10 @@ struct optionsStruct *optSt
         switch (c) {
         
         case 'e':
-            optSt->encrypt = true;
+            st->encrypt = true;
         break;
         case 'd':
-            optSt->decrypt = true;
+            st->decrypt = true;
         break;
         case 'i':
             if (optarg[0] == '-' && strlen(optarg) == 2) {
@@ -156,8 +156,8 @@ struct optionsStruct *optSt
                 errflg++;
                 break;
             } else {
-                optSt->inputFileGiven = true;
-                snprintf(fileSt.inputFileName, NAME_MAX, "%s", optarg);
+                st->inputFileGiven = true;
+                snprintf(st->inputFileName, NAME_MAX, "%s", optarg);
             }
         break;
         case 'o':
@@ -166,8 +166,8 @@ struct optionsStruct *optSt
                 errflg++;
                 break;
             } else {
-                optSt->outputFileGiven = true;
-                snprintf(fileSt.outputFileName, NAME_MAX, "%s", optarg);
+                st->outputFileGiven = true;
+                snprintf(st->outputFileName, NAME_MAX, "%s", optarg);
             }
         break;
         case 'k':
@@ -176,11 +176,11 @@ struct optionsStruct *optSt
                 errflg++;
                 break;
             } else {
-                optSt->keyFileGiven = true;
-                snprintf(fileSt.keyFileName, NAME_MAX, "%s", optarg);
-                sizesSt.keyFileSize = getFileSize(fileSt.keyFileName);
-                sizesSt.keyBufSize = sizesSt.keyFileSize;
-                sizesSt.yaxaSaltSize = sizesSt.keyBufSize / YAXA_KEY_CHUNK_SIZE;
+                st->keyFileGiven = true;
+                snprintf(st->keyFileName, NAME_MAX, "%s", optarg);
+                st->keyFileSize = getFileSize(st->keyFileName);
+                st->keyBufSize = st->keyFileSize;
+                st->yaxaSaltSize = st->keyBufSize / YAXA_KEY_CHUNK_SIZE;
             }
         break;
         case 'O':
@@ -189,9 +189,9 @@ struct optionsStruct *optSt
                 errflg++;
                 break;
             } else {
-                optSt->oneTimePad = true;
-                snprintf(fileSt.otpInFileName, NAME_MAX, "%s", optarg);
-                sprintf(fileSt.otpOutFileName,"%s.pad", fileSt.outputFileName);
+                st->oneTimePad = true;
+                snprintf(st->otpInFileName, NAME_MAX, "%s", optarg);
+                sprintf(st->otpOutFileName,"%s.pad", st->outputFileName);
                 
             }
         break;
@@ -201,8 +201,8 @@ struct optionsStruct *optSt
                 errflg++;
                 break;
             } else {
-                optSt->passWordGiven = true;
-                snprintf(cryptSt.userPass, MAX_PASS_SIZE, "%s", optarg);
+                st->passWordGiven = true;
+                snprintf(st->userPass, MAX_PASS_SIZE, "%s", optarg);
             }
         break;
         case 'w':
@@ -229,30 +229,30 @@ struct optionsStruct *optSt
             while (*subopts != '\0' && !errflg) {
                 switch (getsubopt(&subopts, token, &value)) {
                 case N_FACTOR:
-                    cryptSt.nFactor = atol(value);
+                    st->nFactor = atol(value);
 
-                    int testNum = cryptSt.nFactor;
+                    int testNum = st->nFactor;
                     while (testNum > 1) {
                         if (testNum % 2 != 0) {
                             fprintf(stderr, "scrypt's N factor must be a power of 2.");
-                            cryptSt.nFactor--;
-                            cryptSt.nFactor |= cryptSt.nFactor >> 1;
-                            cryptSt.nFactor |= cryptSt.nFactor >> 2;
-                            cryptSt.nFactor |= cryptSt.nFactor >> 4;
-                            cryptSt.nFactor |= cryptSt.nFactor >> 8;
-                            cryptSt.nFactor |= cryptSt.nFactor >> 16;
-                            cryptSt.nFactor++;
-                            fprintf(stderr, " Rounding it up to %zu\n", cryptSt.nFactor);
+                            st->nFactor--;
+                            st->nFactor |= st->nFactor >> 1;
+                            st->nFactor |= st->nFactor >> 2;
+                            st->nFactor |= st->nFactor >> 4;
+                            st->nFactor |= st->nFactor >> 8;
+                            st->nFactor |= st->nFactor >> 16;
+                            st->nFactor++;
+                            fprintf(stderr, " Rounding it up to %zu\n", st->nFactor);
                             break;
                         }
                         testNum /= 2;
                     }
                     break;
                 case R_FACTOR:
-                    cryptSt.rFactor = atol(value);
+                    st->rFactor = atol(value);
                     break;
                 case P_FACTOR:
-                    cryptSt.pFactor = atol(value);
+                    st->pFactor = atol(value);
                     break;
                 default:
                     fprintf(stderr, "No match found for token: %s\n", value);
@@ -290,9 +290,9 @@ struct optionsStruct *optSt
                             continue;
                         }
                         
-                        optSt->keyBufSizeGiven = true;
-                        sizesSt.keyBufSize = atol(value) * sizeof(*cryptSt.yaxaKey) * getBufSizeMultiple(value);
-                        sizesSt.yaxaSaltSize = sizesSt.keyBufSize / YAXA_KEY_CHUNK_SIZE;
+                        st->keyBufSizeGiven = true;
+                        st->keyBufSize = atol(value) * sizeof(*st->yaxaKey) * getBufSizeMultiple(value);
+                        st->yaxaSaltSize = st->keyBufSize / YAXA_KEY_CHUNK_SIZE;
                     break;
                     case MAC_BUFFER:
                         if (value == NULL) {
@@ -301,9 +301,9 @@ struct optionsStruct *optSt
                             continue;
                         }
                             
-                        optSt->macBufSizeGiven = true;
-                        sizesSt.genHmacBufSize = atol(value) * sizeof(uint8_t) * getBufSizeMultiple(value);
-                        makeMultipleOf(&sizesSt.genHmacBufSize,sizeof(cryptint_t));
+                        st->macBufSizeGiven = true;
+                        st->genHmacBufSize = atol(value) * sizeof(uint8_t) * getBufSizeMultiple(value);
+                        makeMultipleOf(&st->genHmacBufSize,sizeof(cryptint_t));
                     break;
                     case MSG_BUFFER:
                         if (value == NULL) {
@@ -313,12 +313,12 @@ struct optionsStruct *optSt
                             continue;
                         }
                         
-                        optSt->msgBufSizeGiven = true;
+                        st->msgBufSizeGiven = true;
                         
                         /*Divide the amount specified by the size of cryptint_t since it will 
                          * be multipled later*/
-                        sizesSt.msgBufSize = (atol(value) * getBufSizeMultiple(value));
-                        makeMultipleOf(&sizesSt.msgBufSize,sizeof(cryptint_t));
+                        st->msgBufSize = (atol(value) * getBufSizeMultiple(value));
+                        makeMultipleOf(&st->msgBufSize,sizeof(cryptint_t));
                     break;
                     default:
                         fprintf(stderr, "No match found for token: /%s/\n", value);
@@ -338,24 +338,24 @@ struct optionsStruct *optSt
         }
     }
 
-    if(optSt->encrypt && optSt->decrypt) {
+    if(st->encrypt && st->decrypt) {
         fprintf(stderr, "-d and -e are mutually exlusive. Can only encrypt or decrypt, not both.\n");
         errflg++;
     }
-    if(optSt->keyFileGiven && optSt->oneTimePad) {
+    if(st->keyFileGiven && st->oneTimePad) {
         fprintf(stderr, "-k and -O are mutually exlusive. Can only use a keyfileone-time-pad, not both.\n");
         errflg++;
     }
-    if(!optSt->encrypt && !optSt->decrypt) {
+    if(!st->encrypt && !st->decrypt) {
         fprintf(stderr, "Must specify to either encrypt or decrypt (-e or -d)\n");
         errflg++;
     }
-    if(!optSt->inputFileGiven || !optSt->outputFileGiven) {
+    if(!st->inputFileGiven || !st->outputFileGiven) {
         fprintf(stderr, "Must specify an input and output file\n");
         errflg++;
     }
     
-    if(!strcmp(fileSt.inputFileName,fileSt.outputFileName)) {
+    if(!strcmp(st->inputFileName,st->outputFileName)) {
         fprintf(stderr, "Input file and output file are the same\n");
         errflg++;
     }
@@ -365,10 +365,10 @@ struct optionsStruct *optSt
         exit(EXIT_FAILURE);
     }
     
-    if((optSt->passWordGiven && optSt->keyFileGiven) || (optSt->passWordGiven && optSt->oneTimePad)) {
-        sizesSt.yaxaSaltSize = sizesSt.keyBufSize / YAXA_KEY_CHUNK_SIZE;
-    } else if (optSt->oneTimePad || optSt->keyFileGiven) {
-        sizesSt.yaxaSaltSize = 0;
+    if((st->passWordGiven && st->keyFileGiven) || (st->passWordGiven && st->oneTimePad)) {
+        st->yaxaSaltSize = st->keyBufSize / YAXA_KEY_CHUNK_SIZE;
+    } else if (st->oneTimePad || st->keyFileGiven) {
+        st->yaxaSaltSize = 0;
     }
 }
 
@@ -379,32 +379,32 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
     
-    cryptSt.nFactor = DEFAULT_SCRYPT_N;
-    cryptSt.pFactor = DEFAULT_SCRYPT_P;
-    cryptSt.rFactor = DEFAULT_SCRYPT_R;
-    cryptSt.k = 0;
+    struct dataStruct st = {0};
     
-    sizesSt.keyBufSize = YAXA_KEYBUF_SIZE;
-    sizesSt.genHmacBufSize = 1024 * 1024;
-    sizesSt.msgBufSize = 1024 * 1024;
-    sizesSt.yaxaSaltSize = YAXA_KEYBUF_SIZE / YAXA_KEY_CHUNK_SIZE;
+    st.nFactor = DEFAULT_SCRYPT_N;
+    st.pFactor = DEFAULT_SCRYPT_P;
+    st.rFactor = DEFAULT_SCRYPT_R;
+    st.k = 0;
     
-    struct optionsStruct optSt = {0};
-    
-    parseOptions(argc, argv, &optSt);
+    st.keyBufSize = YAXA_KEYBUF_SIZE;
+    st.genHmacBufSize = 1024 * 1024;
+    st.msgBufSize = 1024 * 1024;
+    st.yaxaSaltSize = YAXA_KEYBUF_SIZE / YAXA_KEY_CHUNK_SIZE;
+        
+    parseOptions(argc, argv, &st);
 
-    signal(SIGINT, signalHandler);
+    //signal(SIGINT, signalHandler);
 
-    atexit(cleanUpBuffers);
+    //atexit(cleanUpBuffers);
 
-    allocateBuffers();
+    allocateBuffers(&st);
 
     OpenSSL_add_all_algorithms();
     
-    if(optSt.encrypt) {
-        workThread('e',optSt);
-    } else if(optSt.decrypt) {
-        workThread('d',optSt);
+    if(st.encrypt) {
+        workThread('e',&st);
+    } else if(st.decrypt) {
+        workThread('d',&st);
     }
     
     wait(NULL);

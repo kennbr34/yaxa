@@ -41,7 +41,7 @@ typedef unsigned __int128 cryptint_t;
 #include "globals.h"
 
 /*Structure definitions*/
-//#include "structs.h"
+#include "structs.h"
 
 /*Function prototypes*/
 #include "prototypes.h"

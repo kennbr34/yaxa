@@ -1,11 +1,11 @@
-void doCrypt(FILE *inFile, FILE *outFile, cryptint_t fileSize, FILE *otpInFile, FILE *otpOutFile)
+void doCrypt(FILE *inFile, FILE *outFile, cryptint_t fileSize, FILE *otpInFile, FILE *otpOutFile, struct dataStruct *st)
 {
     
     #ifdef gui
-    *progressSt.progressFraction = 0.0;
+    *(st->progressFraction) = 0.0;
     #endif
     
-    uint8_t *inBuffer = calloc(sizesSt.msgBufSize,sizeof(*inBuffer)), *outBuffer = calloc(sizesSt.msgBufSize,sizeof(*outBuffer));
+    uint8_t *inBuffer = calloc(st->msgBufSize,sizeof(*inBuffer)), *outBuffer = calloc(st->msgBufSize,sizeof(*outBuffer));
     if (inBuffer == NULL || outBuffer == NULL) {
         printSysError(errno);
         printError("Could not allocate memory for doCrypt buffers");
@@ -14,8 +14,8 @@ void doCrypt(FILE *inFile, FILE *outFile, cryptint_t fileSize, FILE *otpInFile, 
     
     
     if(otpInFile != NULL) {
-        miscSt.otpBuffer = calloc(sizesSt.msgBufSize,sizeof(*miscSt.otpBuffer));
-        if (miscSt.otpBuffer == NULL) {
+        st->otpBuffer = calloc(st->msgBufSize,sizeof(*st->otpBuffer));
+        if (st->otpBuffer == NULL) {
             printSysError(errno);
             printError("Could not allocate memory for doCrypt buffers");
             exit(EXIT_FAILURE);
@@ -24,78 +24,78 @@ void doCrypt(FILE *inFile, FILE *outFile, cryptint_t fileSize, FILE *otpInFile, 
     
     /*Initiate HMAC*/
     HMAC_CTX *ctx = HMAC_CTX_new();
-    HMAC_Init_ex(ctx, cryptSt.hmacKey, HMAC_KEY_SIZE, EVP_sha512(), NULL);
+    HMAC_Init_ex(ctx, st->hmacKey, HMAC_KEY_SIZE, EVP_sha512(), NULL);
     
-    HMAC_Update(ctx, cryptSt.yaxaSalt, sizeof(*cryptSt.yaxaSalt) * sizesSt.yaxaSaltSize);
-    HMAC_Update(ctx, cryptSt.passKeyedHash, sizeof(*cryptSt.passKeyedHash) * PASS_KEYED_HASH_SIZE);
+    HMAC_Update(ctx, st->yaxaSalt, sizeof(*st->yaxaSalt) * st->yaxaSaltSize);
+    HMAC_Update(ctx, st->passKeyedHash, sizeof(*st->passKeyedHash) * PASS_KEYED_HASH_SIZE);
     
     cryptint_t remainingBytes = fileSize;
     cryptint_t outInt, inInt;
 
     cryptint_t i;
-    for (i = 0; remainingBytes; i += sizesSt.msgBufSize) {
+    for (i = 0; remainingBytes; i += st->msgBufSize) {
         
-        if(sizesSt.msgBufSize > remainingBytes) {
-            sizesSt.msgBufSize = remainingBytes;
+        if(st->msgBufSize > remainingBytes) {
+            st->msgBufSize = remainingBytes;
         }
 
-        if (freadWErrCheck(inBuffer, sizeof(*inBuffer) * sizesSt.msgBufSize, 1, inFile) != 0) {
-            printSysError(miscSt.returnVal);
+        if (freadWErrCheck(inBuffer, sizeof(*inBuffer) * st->msgBufSize, 1, inFile, st) != 0) {
+            printSysError(st->returnVal);
             printError("Could not read file for encryption/decryption");
             exit(EXIT_FAILURE);
         }
         
         if(otpInFile != NULL) {
-            if (freadWErrCheck(miscSt.otpBuffer, sizeof(*miscSt.otpBuffer) * sizesSt.msgBufSize, 1, otpInFile) != 0) {
-                printSysError(miscSt.returnVal);
+            if (freadWErrCheck(st->otpBuffer, sizeof(*st->otpBuffer) * st->msgBufSize, 1, otpInFile, st) != 0) {
+                printSysError(st->returnVal);
                 printError("Could not read OTP file for encryption/decryption");
                 exit(EXIT_FAILURE);
             }
         }
 
-        for(uint32_t j = 0; j < sizesSt.msgBufSize; j += sizeof(inInt)) {
+        for(uint32_t j = 0; j < st->msgBufSize; j += sizeof(inInt)) {
             memcpy(&inInt,inBuffer + j,sizeof(inInt));
-            outInt = yaxa(inInt);
+            outInt = yaxa(inInt,st);
             memcpy(outBuffer + j,&outInt,sizeof(outInt));
         }
 
-        if (fwriteWErrCheck(outBuffer, sizeof(*outBuffer) * sizesSt.msgBufSize, 1, outFile) != 0) {
-            printSysError(miscSt.returnVal);
+        if (fwriteWErrCheck(outBuffer, sizeof(*outBuffer) * st->msgBufSize, 1, outFile, st) != 0) {
+            printSysError(st->returnVal);
             printError("Could not write file for encryption/decryption");
             exit(EXIT_FAILURE);
         }
         
-        HMAC_Update(ctx, outBuffer, sizeof(*outBuffer) * sizesSt.msgBufSize);
+        HMAC_Update(ctx, outBuffer, sizeof(*outBuffer) * st->msgBufSize);
         
         if(otpInFile != NULL && otpOutFile != NULL) {
-            if (fwriteWErrCheck(miscSt.otpBuffer, sizeof(*miscSt.otpBuffer) * sizesSt.msgBufSize, 1, otpOutFile) != 0) {
-                printSysError(miscSt.returnVal);
+            if (fwriteWErrCheck(st->otpBuffer, sizeof(*st->otpBuffer) * st->msgBufSize, 1, otpOutFile, st) != 0) {
+                printSysError(st->returnVal);
                 printError("Could not write file for encryption/decryption");
                 exit(EXIT_FAILURE);
             }
         }
         
         #ifdef gui
-        *progressSt.progressFraction = (double)i / (double)fileSize;
+        *(st->progressFraction) = (double)i / (double)fileSize;
         #endif
-        remainingBytes -= sizesSt.msgBufSize;
+        remainingBytes -= st->msgBufSize;
     }
     
-    i += sizesSt.yaxaSaltSize + PASS_KEYED_HASH_SIZE;
-    HMAC_Final(ctx, cryptSt.generatedMAC, (unsigned int *)&i);
+    i += st->yaxaSaltSize + PASS_KEYED_HASH_SIZE;
+    HMAC_Final(ctx, st->generatedMAC, (unsigned int *)&i);
     HMAC_CTX_free(ctx);
     
     free(inBuffer);
     free(outBuffer);
 }
 
-void genHMAC(FILE *dataFile, cryptint_t fileSize)
+void genHMAC(FILE *dataFile, cryptint_t fileSize, struct dataStruct *st)
 {
     #ifdef gui
-    *progressSt.progressFraction = 0.0;
+    *(st->progressFraction) = 0.0;
     #endif
     
-    uint8_t *genHmacBuffer = malloc(sizesSt.genHmacBufSize * sizeof(*genHmacBuffer));
+    uint8_t *genHmacBuffer = malloc(st->genHmacBufSize * sizeof(*genHmacBuffer));
     if (genHmacBuffer == NULL) {
         printSysError(errno);
         printError("Could not allocate memory for genHmacBuffer");
@@ -105,42 +105,42 @@ void genHMAC(FILE *dataFile, cryptint_t fileSize)
 
     /*Initiate HMAC*/
     HMAC_CTX *ctx = HMAC_CTX_new();
-    HMAC_Init_ex(ctx, cryptSt.hmacKey, HMAC_KEY_SIZE, EVP_sha512(), NULL);
+    HMAC_Init_ex(ctx, st->hmacKey, HMAC_KEY_SIZE, EVP_sha512(), NULL);
 
     /*HMAC the cipher-text, passtag and salt*/
     cryptint_t i; /*Declare i outside of for loop so it can be used in HMAC_Final as the size*/
-    for (i = 0; remainingBytes; i += sizesSt.genHmacBufSize) {
+    for (i = 0; remainingBytes; i += st->genHmacBufSize) {
         
-        if(sizesSt.genHmacBufSize > remainingBytes) {
-            sizesSt.genHmacBufSize = remainingBytes;
+        if(st->genHmacBufSize > remainingBytes) {
+            st->genHmacBufSize = remainingBytes;
         }
         
-        if (freadWErrCheck(genHmacBuffer, sizeof(*genHmacBuffer) * sizesSt.genHmacBufSize, 1, dataFile) != 0) {
-            printSysError(miscSt.returnVal);
+        if (freadWErrCheck(genHmacBuffer, sizeof(*genHmacBuffer) * st->genHmacBufSize, 1, dataFile, st) != 0) {
+            printSysError(st->returnVal);
             printError("Could not generate HMAC");
             exit(EXIT_FAILURE);
         }
-        HMAC_Update(ctx, genHmacBuffer, sizeof(*genHmacBuffer) * sizesSt.genHmacBufSize);
+        HMAC_Update(ctx, genHmacBuffer, sizeof(*genHmacBuffer) * st->genHmacBufSize);
         
-        remainingBytes -= sizesSt.genHmacBufSize;
+        remainingBytes -= st->genHmacBufSize;
         #ifdef gui
-        *progressSt.progressFraction = (double)i/(double)fileSize;
+        *(st->progressFraction) = (double)i/(double)fileSize;
         #endif
     }
-    HMAC_Final(ctx, cryptSt.generatedMAC, (unsigned int *)&i);
+    HMAC_Final(ctx, st->generatedMAC, (unsigned int *)&i);
     HMAC_CTX_free(ctx);
     free(genHmacBuffer);
 }
 
-void genHMACKey()
+void genHMACKey(struct dataStruct *st)
 {
     
     #ifdef gui
-    strcpy(progressSt.statusMessage,"Deriving auth key...");
+    strcpy(st->statusMessage,"Deriving auth key...");
     #endif
 
     EVP_PKEY_CTX *pctx;
-    size_t outlen = sizeof(*cryptSt.hmacKey) * HMAC_KEY_SIZE;
+    size_t outlen = sizeof(*st->hmacKey) * HMAC_KEY_SIZE;
     pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, NULL);
     
     if (EVP_PKEY_derive_init(pctx) <= 0) {
@@ -153,7 +153,7 @@ void genHMACKey()
         ERR_print_errors_fp(stderr);
         exit(EXIT_FAILURE);
     }
-    if (EVP_PKEY_CTX_set1_hkdf_key(pctx, cryptSt.yaxaKey, sizeof(*cryptSt.yaxaKey) * sizesSt.keyBufSize) <= 0) {
+    if (EVP_PKEY_CTX_set1_hkdf_key(pctx, st->yaxaKey, sizeof(*st->yaxaKey) * st->keyBufSize) <= 0) {
         printError("HKDF failed\n");
         ERR_print_errors_fp(stderr);
         exit(EXIT_FAILURE);
@@ -163,7 +163,7 @@ void genHMACKey()
         ERR_print_errors_fp(stderr);
         exit(EXIT_FAILURE);
     }
-    if (EVP_PKEY_derive(pctx, cryptSt.hmacKey, &outlen) <= 0) {
+    if (EVP_PKEY_derive(pctx, st->hmacKey, &outlen) <= 0) {
         printError("HKDF failed\n");
         ERR_print_errors_fp(stderr);
         exit(EXIT_FAILURE);
@@ -172,36 +172,36 @@ void genHMACKey()
     EVP_PKEY_CTX_free(pctx);
 }
 
-void genPassTag()
+void genPassTag(struct dataStruct *st)
 {
     
     #ifdef gui
-    *progressSt.progressFraction = 0;
+    *(st->progressFraction) = 0;
     #endif
     
-    if (HMAC(EVP_sha512(), cryptSt.hmacKey, HMAC_KEY_SIZE, (const unsigned char *)cryptSt.userPass, strlen(cryptSt.userPass), cryptSt.passKeyedHash, cryptSt.HMACLengthPtr) == NULL) {
+    if (HMAC(EVP_sha512(), st->hmacKey, HMAC_KEY_SIZE, (const unsigned char *)st->userPass, strlen(st->userPass), st->passKeyedHash, st->HMACLengthPtr) == NULL) {
         printError("Password keyed-hash failure");
         ERR_print_errors_fp(stderr);
         exit(EXIT_FAILURE);
     }
     
     #ifdef gui
-    *progressSt.progressFraction = 1;
+    *(st->progressFraction) = 1;
     #endif
 }
 
-void genYaxaKey()
+void genYaxaKey(struct dataStruct *st)
 {
     #ifdef gui
-    *progressSt.progressFraction = 0;
+    *(st->progressFraction) = 0;
     double keyChunkFloat = YAXA_KEY_CHUNK_SIZE;
-    double keyBufFloat = sizesSt.keyBufSize;
+    double keyBufFloat = st->keyBufSize;
     #endif
     
     /*Derive a 64-byte key to expand*/
     EVP_PKEY_CTX *pctx;
 
-    size_t outlen = sizeof(*cryptSt.yaxaKeyChunk) * YAXA_KEY_CHUNK_SIZE;
+    size_t outlen = sizeof(*st->yaxaKeyChunk) * YAXA_KEY_CHUNK_SIZE;
     pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_SCRYPT, NULL);
 
     if (EVP_PKEY_derive_init(pctx) <= 0) {
@@ -209,32 +209,32 @@ void genYaxaKey()
         ERR_print_errors_fp(stderr);
         exit(EXIT_FAILURE);
     }
-    if (EVP_PKEY_CTX_set1_pbe_pass(pctx, cryptSt.userPass, strlen(cryptSt.userPass)) <= 0) {
+    if (EVP_PKEY_CTX_set1_pbe_pass(pctx, st->userPass, strlen(st->userPass)) <= 0) {
         printError("scrypt failed\n");
         ERR_print_errors_fp(stderr);
         exit(EXIT_FAILURE);
     }
-    if (EVP_PKEY_CTX_set1_scrypt_salt(pctx, cryptSt.yaxaSalt, sizeof(*cryptSt.yaxaSalt) * sizesSt.yaxaSaltSize) <= 0) {
+    if (EVP_PKEY_CTX_set1_scrypt_salt(pctx, st->yaxaSalt, sizeof(*st->yaxaSalt) * st->yaxaSaltSize) <= 0) {
         printError("scrypt failed\n");
         ERR_print_errors_fp(stderr);
         exit(EXIT_FAILURE);
     }
-    if (EVP_PKEY_CTX_set_scrypt_N(pctx, cryptSt.nFactor) <= 0) {
+    if (EVP_PKEY_CTX_set_scrypt_N(pctx, st->nFactor) <= 0) {
         printError("scrypt failed\n");
         ERR_print_errors_fp(stderr);
         exit(EXIT_FAILURE);
     }
-    if (EVP_PKEY_CTX_set_scrypt_r(pctx, cryptSt.rFactor) <= 0) {
+    if (EVP_PKEY_CTX_set_scrypt_r(pctx, st->rFactor) <= 0) {
         printError("scrypt failed\n");
         ERR_print_errors_fp(stderr);
         exit(EXIT_FAILURE);
     }
-    if (EVP_PKEY_CTX_set_scrypt_p(pctx, cryptSt.pFactor) <= 0) {
+    if (EVP_PKEY_CTX_set_scrypt_p(pctx, st->pFactor) <= 0) {
         printError("scrypt failed\n");
         ERR_print_errors_fp(stderr);
         exit(EXIT_FAILURE);
     }
-    if (EVP_PKEY_derive(pctx, cryptSt.yaxaKeyChunk, &outlen) <= 0) {
+    if (EVP_PKEY_derive(pctx, st->yaxaKeyChunk, &outlen) <= 0) {
         printError("scrypt failed\n");
         ERR_print_errors_fp(stderr);
         exit(EXIT_FAILURE);
@@ -243,17 +243,17 @@ void genYaxaKey()
     EVP_PKEY_CTX_free(pctx);
     
     /*Copy that first 64-byte chunk into the yaxaKeyArray*/
-    memcpy(cryptSt.yaxaKey, cryptSt.yaxaKeyChunk, sizeof(*cryptSt.yaxaKeyChunk) * YAXA_KEY_CHUNK_SIZE);
+    memcpy(st->yaxaKey, st->yaxaKeyChunk, sizeof(*st->yaxaKeyChunk) * YAXA_KEY_CHUNK_SIZE);
     
     #ifdef gui
-    *progressSt.progressFraction = keyChunkFloat / keyBufFloat;
+    *(st->progressFraction) = keyChunkFloat / keyBufFloat;
     #endif
 
     /*Expand that 64-byte key into keyBufSize key*/
-    for (int i = 1; i < sizesSt.yaxaSaltSize; i++) {
+    for (int i = 1; i < st->yaxaSaltSize; i++) {
                 
         EVP_PKEY_CTX *pctx;
-        size_t outlen = sizeof(*cryptSt.yaxaKeyChunk) * YAXA_KEY_CHUNK_SIZE;
+        size_t outlen = sizeof(*st->yaxaKeyChunk) * YAXA_KEY_CHUNK_SIZE;
         pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, NULL);
         
         if (EVP_PKEY_derive_init(pctx) <= 0) {
@@ -266,12 +266,12 @@ void genYaxaKey()
             ERR_print_errors_fp(stderr);
             exit(EXIT_FAILURE);
         }
-        if (EVP_PKEY_CTX_set1_hkdf_key(pctx, cryptSt.yaxaKey + ((i * YAXA_KEY_CHUNK_SIZE) - YAXA_KEY_CHUNK_SIZE), sizeof(*cryptSt.yaxaKeyChunk) * YAXA_KEY_CHUNK_SIZE) <= 0) {
+        if (EVP_PKEY_CTX_set1_hkdf_key(pctx, st->yaxaKey + ((i * YAXA_KEY_CHUNK_SIZE) - YAXA_KEY_CHUNK_SIZE), sizeof(*st->yaxaKeyChunk) * YAXA_KEY_CHUNK_SIZE) <= 0) {
             printError("HKDF failed\n");
             ERR_print_errors_fp(stderr);
             exit(EXIT_FAILURE);
         }
-        if (EVP_PKEY_derive(pctx, cryptSt.yaxaKeyChunk, &outlen) <= 0) {
+        if (EVP_PKEY_derive(pctx, st->yaxaKeyChunk, &outlen) <= 0) {
             printError("HKDF failed\n");
             ERR_print_errors_fp(stderr);
             exit(EXIT_FAILURE);
@@ -280,21 +280,21 @@ void genYaxaKey()
         EVP_PKEY_CTX_free(pctx);
 
         /*Copy the 64-byte chunk into the yaxaKeyarray*/
-        memcpy(cryptSt.yaxaKey + (i * YAXA_KEY_CHUNK_SIZE), cryptSt.yaxaKeyChunk, sizeof(*cryptSt.yaxaKeyChunk) * YAXA_KEY_CHUNK_SIZE);
+        memcpy(st->yaxaKey + (i * YAXA_KEY_CHUNK_SIZE), st->yaxaKeyChunk, sizeof(*st->yaxaKeyChunk) * YAXA_KEY_CHUNK_SIZE);
         
         #ifdef gui
-        *progressSt.progressFraction = ((double)i * keyChunkFloat) / keyBufFloat;
+        *(st->progressFraction) = ((double)i * keyChunkFloat) / keyBufFloat;
         #endif
     }
     
-    OPENSSL_cleanse(cryptSt.yaxaKeyChunk, sizeof(*cryptSt.yaxaKeyChunk ) * YAXA_KEY_CHUNK_SIZE);
+    OPENSSL_cleanse(st->yaxaKeyChunk, sizeof(*st->yaxaKeyChunk ) * YAXA_KEY_CHUNK_SIZE);
 }
 
-void genCtrStart()
+void genCtrStart(struct dataStruct *st)
 {	
 	/*Use HKDF to derive bytes for counterBytes based on yaxaKey*/
 	EVP_PKEY_CTX *pctx;
-	size_t outlen = sizeof(cryptSt.counterInt);
+	size_t outlen = sizeof(st->counterInt);
 	pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, NULL);
 	
 	if (EVP_PKEY_derive_init(pctx) <= 0) {
@@ -307,7 +307,7 @@ void genCtrStart()
 		ERR_print_errors_fp(stderr);
 		exit(EXIT_FAILURE);
 	}
-	if (EVP_PKEY_CTX_set1_hkdf_key(pctx, cryptSt.yaxaKey, sizeof(*cryptSt.yaxaKey) * sizesSt.keyBufSize) <= 0) {
+	if (EVP_PKEY_CTX_set1_hkdf_key(pctx, st->yaxaKey, sizeof(*st->yaxaKey) * st->keyBufSize) <= 0) {
 		printError("HKDF failed\n");
 		ERR_print_errors_fp(stderr);
 		exit(EXIT_FAILURE);
@@ -317,22 +317,22 @@ void genCtrStart()
         ERR_print_errors_fp(stderr);
         exit(EXIT_FAILURE);
     }
-	if (EVP_PKEY_derive(pctx, cryptSt.counterBytes, &outlen) <= 0) {
+	if (EVP_PKEY_derive(pctx, st->counterBytes, &outlen) <= 0) {
 		printError("HKDF failed\n");
 		ERR_print_errors_fp(stderr);
 		exit(EXIT_FAILURE);
 	}
 	
-    memcpy(&cryptSt.counterInt,cryptSt.counterBytes,outlen);
+    memcpy(&st->counterInt,st->counterBytes,outlen);
     
 	EVP_PKEY_CTX_free(pctx);
 }
 
-void genNonce()
+void genNonce(struct dataStruct *st)
 {	
 	/*Use HKDF to derive bytes for counterBytes based on yaxaKey*/
 	EVP_PKEY_CTX *pctx;
-	size_t outlen = sizeof(cryptSt.nonceInt);
+	size_t outlen = sizeof(st->nonceInt);
 	pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, NULL);
 	
 	if (EVP_PKEY_derive_init(pctx) <= 0) {
@@ -345,7 +345,7 @@ void genNonce()
 		ERR_print_errors_fp(stderr);
 		exit(EXIT_FAILURE);
 	}
-	if (EVP_PKEY_CTX_set1_hkdf_key(pctx, cryptSt.yaxaKey, sizeof(*cryptSt.yaxaKey) * sizesSt.keyBufSize) <= 0) {
+	if (EVP_PKEY_CTX_set1_hkdf_key(pctx, st->yaxaKey, sizeof(*st->yaxaKey) * st->keyBufSize) <= 0) {
 		printError("HKDF failed\n");
 		ERR_print_errors_fp(stderr);
 		exit(EXIT_FAILURE);
@@ -355,69 +355,69 @@ void genNonce()
         ERR_print_errors_fp(stderr);
         exit(EXIT_FAILURE);
     }
-	if (EVP_PKEY_derive(pctx, cryptSt.nonceBytes, &outlen) <= 0) {
+	if (EVP_PKEY_derive(pctx, st->nonceBytes, &outlen) <= 0) {
 		printError("HKDF failed\n");
 		ERR_print_errors_fp(stderr);
 		exit(EXIT_FAILURE);
 	}
 	
-    memcpy(&cryptSt.nonceInt,cryptSt.nonceBytes,outlen);
+    memcpy(&st->nonceInt,st->nonceBytes,outlen);
     
 	EVP_PKEY_CTX_free(pctx);
 }
 
-void genYaxaSalt()
+void genYaxaSalt(struct dataStruct *st)
 {
 
     #ifdef gui 
-    double saltSizeFloat = sizesSt.yaxaSaltSize;
-    *progressSt.progressFraction = 0;
+    double saltSizeFloat = st->yaxaSaltSize;
+    *(st->progressFraction) = 0;
     #endif
 
     unsigned char b; /*Random byte*/
 
-    for (int i = 0; i < sizesSt.yaxaSaltSize; i++) {
+    for (int i = 0; i < st->yaxaSaltSize; i++) {
         if (!RAND_bytes(&b, 1)) {
             printError("Aborting: CSPRNG bytes may not be unpredictable");
             exit(EXIT_FAILURE);
         }
-        cryptSt.yaxaSalt[i] = b;
+        st->yaxaSalt[i] = b;
         #ifdef gui
-        *progressSt.progressFraction = (double)i/saltSizeFloat;
+        *(st->progressFraction) = (double)i/saltSizeFloat;
         #endif
     }
 }
 
-cryptint_t yaxa(cryptint_t messageInt)
+cryptint_t yaxa(cryptint_t messageInt, struct dataStruct *st)
 {
-    if(miscSt.otpBuffer != NULL) {
+    if(st->otpBuffer != NULL) {
         /*Fill up 128-bit key integer with 16 8-bit bytes from yaxaKey*/
-        for (uint8_t i = 0; i < sizeof(cryptSt.keyInt); i++) {
+        for (uint8_t i = 0; i < sizeof(st->keyInt); i++) {
             /*Reset to the start of the key if reached the end*/
-            if (cryptSt.k + 1 >= sizesSt.msgBufSize)
-                cryptSt.k = 0;
+            if (st->k + 1 >= st->msgBufSize)
+                st->k = 0;
             else
-                cryptSt.k++;
-            cryptSt.keyBytes[i] = miscSt.otpBuffer[cryptSt.k];
+                st->k++;
+            st->keyBytes[i] = st->otpBuffer[st->k];
         }
             
-        memcpy(&cryptSt.keyInt,cryptSt.keyBytes,sizeof(cryptSt.keyInt));
+        memcpy(&st->keyInt,st->keyBytes,sizeof(st->keyInt));
     } else {
     /*Fill up 128-bit key integer with 16 8-bit bytes from yaxaKey*/
-        for (uint8_t i = 0; i < sizeof(cryptSt.keyInt); i++) {
+        for (uint8_t i = 0; i < sizeof(st->keyInt); i++) {
             /*Reset to the start of the key if reached the end*/
-            if (cryptSt.k + 1 >= sizesSt.keyBufSize)
-                cryptSt.k = 0;
+            if (st->k + 1 >= st->keyBufSize)
+                st->k = 0;
             else
-                cryptSt.k++;
-            cryptSt.keyBytes[i] = cryptSt.yaxaKey[cryptSt.k];
+                st->k++;
+            st->keyBytes[i] = st->yaxaKey[st->k];
         }
             
-        memcpy(&cryptSt.keyInt,cryptSt.keyBytes,sizeof(cryptSt.keyInt));
+        memcpy(&st->keyInt,st->keyBytes,sizeof(st->keyInt));
     }
         
     /*Ctr ^ K ^ N ^ M*/
     /*All values are 128-bit*/
 
-    return cryptSt.counterInt++ ^ cryptSt.keyInt ^ cryptSt.nonceInt ^ messageInt;
+    return st->counterInt++ ^ st->keyInt ^ st->nonceInt ^ messageInt;
 }
