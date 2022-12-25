@@ -168,7 +168,7 @@ int main(int argc, char *argv[])
     gtk_widget_set_tooltip_text (st.keyFileButton, "Select the key file you want to use here");
     g_signal_connect (st.keyFileButton, "clicked", G_CALLBACK (keyFileSelect), (gpointer)&st);
     //FIXME Disabling these entries no longer works with pointers to structs
-    g_signal_connect (st.keyFileButton, "clicked", G_CALLBACK (otpFileEntryDisable), (gpointer)&st);
+    //g_signal_connect (st.keyFileButton, "clicked", G_CALLBACK (otpFileEntryDisable), (gpointer)&st);
     
     GtkWidget *otpFileLabel = gtk_label_new ("One-Time-Pad File Path");
     st.otpFileNameBox = gtk_entry_new ();
