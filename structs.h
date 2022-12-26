@@ -1,18 +1,4 @@
-struct dataStruct {
-    char encryptOrDecrypt[8];
-    
-    bool encrypt;
-    bool decrypt;
-    bool inputFileGiven;
-    bool outputFileGiven;
-    bool keyFileGiven;
-    bool oneTimePad;
-    bool passWordGiven;
-    bool keyBufSizeGiven;
-    bool macBufSizeGiven;
-    bool msgBufSizeGiven;
-    bool gotPassFromCmdLine;
-    
+struct cryptoStruct {
     cryptint_t counterInt;
     uint8_t counterBytes[16];
     
@@ -39,25 +25,45 @@ struct dataStruct {
     uint8_t *hmacKey;
     uint32_t *HMACLengthPtr;
     
-    /*Iterator for indexing yaxaKey array*/
-    uint32_t k;
-    
-    char inputFileName[NAME_MAX];
-    char outputFileName[NAME_MAX];
-    char keyFileName[NAME_MAX];
-    char otpInFileName[NAME_MAX];
-    char otpOutFileName[NAME_MAX];
-    
     size_t keyBufSize;
     size_t genHmacBufSize;
     size_t msgBufSize;
     size_t yaxaSaltSize;
     size_t keyFileSize;
     
+    /*Iterator for indexing yaxaKey array*/
+    uint32_t k;
+};
+
+struct fileNames {
+    char inputFileName[NAME_MAX];
+    char outputFileName[NAME_MAX];
+    char keyFileName[NAME_MAX];
+    char otpInFileName[NAME_MAX];
+    char otpOutFileName[NAME_MAX];
+};
+
+struct optionsStruct {
+    bool encrypt;
+    bool decrypt;
+    bool inputFileGiven;
+    bool outputFileGiven;
+    bool keyFileGiven;
+    bool oneTimePad;
+    bool passWordGiven;
+    bool keyBufSizeGiven;
+    bool macBufSizeGiven;
+    bool msgBufSizeGiven;
+    bool gotPassFromCmdLine;
+};
+
+struct miscStruct {
     uint64_t returnVal;
-    uint8_t *otpBuffer;
-    
+};
+
 #ifdef gui
+struct guiStruct {
+    char encryptOrDecrypt[8];
 
     GtkWidget *win;
 
@@ -100,5 +106,15 @@ struct dataStruct {
     
     GtkWidget *progressBar;
 
+};
 #endif
+
+struct dataStruct {
+    struct cryptoStruct cryptSt;
+    struct fileNames fileNameSt;
+    struct optionsStruct optSt;
+    struct miscStruct miscSt;
+    #ifdef gui
+    struct guiStruct guiSt;
+    #endif
 };
