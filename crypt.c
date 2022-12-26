@@ -12,7 +12,7 @@ void doCrypt(FILE *inFile, FILE *outFile, cryptint_t fileSize, FILE *otpInFile, 
         exit(EXIT_FAILURE);
     }
     
-    
+    uint8_t *otpBuffer = NULL;
     if(otpInFile != NULL) {
         otpBuffer = calloc(st->cryptSt.msgBufSize,sizeof(*otpBuffer));
         if (otpBuffer == NULL) {
@@ -55,7 +55,7 @@ void doCrypt(FILE *inFile, FILE *outFile, cryptint_t fileSize, FILE *otpInFile, 
 
         for(uint32_t j = 0; j < st->cryptSt.msgBufSize; j += sizeof(inInt)) {
             memcpy(&inInt,inBuffer + j,sizeof(inInt));
-            outInt = yaxa(inInt,st);
+            outInt = yaxa(inInt,otpBuffer,st);
             memcpy(outBuffer + j,&outInt,sizeof(outInt));
         }
 
@@ -388,7 +388,7 @@ void genYaxaSalt(struct dataStruct *st)
     }
 }
 
-cryptint_t yaxa(cryptint_t messageInt, struct dataStruct *st)
+cryptint_t yaxa(cryptint_t messageInt, uint8_t *otpBuffer, struct dataStruct *st)
 {
     if(otpBuffer != NULL) {
         /*Fill up 128-bit key integer with 16 8-bit bytes from yaxaKey*/
