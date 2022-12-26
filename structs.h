@@ -59,6 +59,8 @@ struct dataStruct {
     
 #ifdef gui
 
+    GtkWidget *win;
+
     GtkWidget *inputFileNameBox;
     GtkWidget *outputFileNameBox;
     GtkWidget *keyFileNameBox;

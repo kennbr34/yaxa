@@ -44,7 +44,7 @@ static gboolean updateOverallProgress(gpointer user_data);
 
 int main(int argc, char *argv[])
 {
-    struct dataStruct st = {0};
+    static struct dataStruct st = {0};
     
     //struct dataStruct *st = g_new0(struct dataStruct, 1);
     
@@ -73,9 +73,9 @@ int main(int argc, char *argv[])
     
     gtk_init (&argc, &argv);
     
-    GtkWidget *win = gtk_window_new (GTK_WINDOW_TOPLEVEL);
+    st.win = gtk_window_new (GTK_WINDOW_TOPLEVEL);
     
-    gtk_window_set_title(GTK_WINDOW (win), "YAXA File Encryption Utility");
+    gtk_window_set_title(GTK_WINDOW (st.win), "YAXA File Encryption Utility");
     
     GtkWidget *inputFileLabel = gtk_label_new ("Input File Path");
     st.inputFileNameBox = gtk_entry_new ();
@@ -345,11 +345,11 @@ int main(int argc, char *argv[])
     gtk_grid_attach (GTK_GRID (grid), st.statusBar, 0, 30, 2, 1);
     
     
-    gtk_container_add (GTK_CONTAINER (win), grid);
+    gtk_container_add (GTK_CONTAINER (st.win), grid);
     
-    g_signal_connect (win, "delete_event", G_CALLBACK (gtk_main_quit), NULL);
+    g_signal_connect (st.win, "delete_event", G_CALLBACK (gtk_main_quit), NULL);
     
-    gtk_widget_show_all (win);
+    gtk_widget_show_all (st.win);
     gtk_main ();
 
     exit(EXIT_SUCCESS);
@@ -543,7 +543,7 @@ static void inputFileSelect (GtkWidget *wid, gpointer ptr)
     char *fileName;
     
     dialog = gtk_file_chooser_dialog_new ("Open File",
-                                          GTK_WINDOW (ptr),
+                                          GTK_WINDOW (st->win),
                                           action,
                                           "Cancel",
                                           GTK_RESPONSE_CANCEL,
@@ -571,7 +571,7 @@ static void outputFileSelect (GtkWidget *wid, gpointer ptr)
     char *fileName;
     
     dialog = gtk_file_chooser_dialog_new ("Save File",
-                                          GTK_WINDOW (ptr),
+                                          GTK_WINDOW (st->win),
                                           action,
                                           "Cancel",
                                           GTK_RESPONSE_CANCEL,
@@ -599,7 +599,7 @@ static void keyFileSelect (GtkWidget *wid, gpointer ptr)
     char *fileName;
     
     dialog = gtk_file_chooser_dialog_new ("Open File",
-                                          GTK_WINDOW (ptr),
+                                          GTK_WINDOW (st->win),
                                           action,
                                           "Cancel",
                                           GTK_RESPONSE_CANCEL,
@@ -627,7 +627,7 @@ static void otpFileSelect (GtkWidget *wid, gpointer ptr)
     char *fileName;
     
     dialog = gtk_file_chooser_dialog_new ("Open File",
-                                          GTK_WINDOW (ptr),
+                                          GTK_WINDOW (st->win),
                                           action,
                                           "Cancel",
                                           GTK_RESPONSE_CANCEL,
