@@ -62,10 +62,6 @@ int main(int argc, char *argv[])
     st.statusMessage = mmap(NULL, 256, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
     st.progressFraction = mmap(NULL, sizeof(double), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
     st.overallProgressFraction = mmap(NULL, sizeof(double), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
-    
-    //signal(SIGINT, signalHandler);
-
-    //atexit(cleanUpBuffers);
 
     allocateBuffers(&st);
 
@@ -351,6 +347,8 @@ int main(int argc, char *argv[])
     
     gtk_widget_show_all (st.win);
     gtk_main ();
+    
+    cleanUpBuffers(&st);
 
     exit(EXIT_SUCCESS);
 }

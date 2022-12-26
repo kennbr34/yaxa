@@ -1,6 +1,6 @@
 /*Prototype functions*/
 void allocateBuffers(struct dataStruct *st);                                                  /*Allocates all the buffers used*/
-void cleanUpBuffers();                                                   /*Writes zeroes to all the buffers when done*/
+void cleanUpBuffers(struct dataStruct *st);                                                   /*Writes zeroes to all the buffers when done*/
 void doCrypt(FILE *inFile, FILE *outFile, cryptint_t fileSize, FILE *oneTimePad, FILE *otpOutFile, struct dataStruct *st);   /*Encryption/Decryption routines*/
 uint64_t freadWErrCheck(void *ptr, size_t size, size_t nmemb, FILE *stream, struct dataStruct *st);  /*fread() error checking wrapper*/
 uint64_t fwriteWErrCheck(void *ptr, size_t size, size_t nmemb, FILE *stream, struct dataStruct *st); /*fwrite() error checking wrapper*/

@@ -29,17 +29,17 @@ void allocateBuffers(struct dataStruct *st)
     }
 }
 
-//void cleanUpBuffers()
-//{
-    //OPENSSL_cleanse(st->yaxaKey, st->keyBufSize);
-    //free(st->yaxaKey);
-    //OPENSSL_cleanse(st->hmacKey, HMAC_KEY_SIZE);
-    //free(st->hmacKey);
-    //OPENSSL_cleanse(st->yaxaKeyChunk, YAXA_KEY_CHUNK_SIZE);
-    //free(st->yaxaKeyChunk);
+void cleanUpBuffers(struct dataStruct *st)
+{
+    OPENSSL_cleanse(st->yaxaKey, st->keyBufSize);
+    free(st->yaxaKey);
+    OPENSSL_cleanse(st->hmacKey, HMAC_KEY_SIZE);
+    free(st->hmacKey);
+    OPENSSL_cleanse(st->yaxaKeyChunk, YAXA_KEY_CHUNK_SIZE);
+    free(st->yaxaKeyChunk);
     
-    //OPENSSL_cleanse(st->userPass, strlen(st->userPass));
-    //OPENSSL_cleanse(st->userPassToVerify, strlen(st->userPassToVerify));
+    OPENSSL_cleanse(st->userPass, strlen(st->userPass));
+    OPENSSL_cleanse(st->userPassToVerify, strlen(st->userPassToVerify));
 
-    //free(st->yaxaSalt);
-//}
+    free(st->yaxaSalt);
+}

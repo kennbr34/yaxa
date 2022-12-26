@@ -393,10 +393,6 @@ int main(int argc, char *argv[])
         
     parseOptions(argc, argv, &st);
 
-    //signal(SIGINT, signalHandler);
-
-    //atexit(cleanUpBuffers);
-
     allocateBuffers(&st);
 
     OpenSSL_add_all_algorithms();
@@ -408,6 +404,8 @@ int main(int argc, char *argv[])
     }
     
     wait(NULL);
+    
+    cleanUpBuffers(&st);
 
     return EXIT_SUCCESS;
 }
