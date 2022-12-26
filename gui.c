@@ -16,8 +16,26 @@ static void outputFileSelect (GtkWidget *wid, gpointer ptr);
 static void keyFileSelect (GtkWidget *wid, gpointer ptr);
 static void otpFileSelect (GtkWidget *wid, gpointer ptr);
 void passVisibilityToggle (GtkWidget *wid, gpointer ptr);
-void otpFileEntryDisable (GtkWidget *wid, gpointer ptr);
-void keyFileEntryDisable (GtkWidget *wid, gpointer ptr);
+void keyFileEntryDisableFromInsert (GtkEditable* self,
+gchar* new_text,
+  gint new_text_length,
+  gint* position,
+  gpointer user_data);
+void keyFileEntryEnableFromDelete (GtkEditable* self,
+  gint start_pos,
+  gint end_pos,
+  gpointer user_data);
+void keyFileEntryDisableButtonFromClick (GtkWidget *wid, gpointer ptr);
+void otpFileEntryDisableFromInsert (GtkEditable* self,
+gchar* new_text,
+  gint new_text_length,
+  gint* position,
+  gpointer user_data);
+void otpFileEntryEnableFromDelete (GtkEditable* self,
+  gint start_pos,
+  gint end_pos,
+  gpointer user_data);
+void otpFileEntryDisableButtonFromClick (GtkWidget *wid, gpointer ptr);
 void otpFileEntryEnable (GtkWidget *wid, gpointer ptr);
 void keyFileEntryEnable (GtkWidget *wid, gpointer ptr);
 static gboolean updateStatus(gpointer user_data);
@@ -26,7 +44,7 @@ static gboolean updateOverallProgress(gpointer user_data);
 
 int main(int argc, char *argv[])
 {
-    static struct dataStruct st = {0};
+    struct dataStruct st = {0};
     
     //struct dataStruct *st = g_new0(struct dataStruct, 1);
     
@@ -160,26 +178,22 @@ int main(int argc, char *argv[])
     
     GtkWidget *keyFileLabel = gtk_label_new ("Key File Path");
     st.keyFileNameBox = gtk_entry_new ();
-    //FIXME Disabling these entries no longer works with pointers to structs
-    //g_signal_connect (st.keyFileNameBox, "insert-text", G_CALLBACK (otpFileEntryDisable), (gpointer)&st);
-    //g_signal_connect (st.keyFileNameBox, "delete-text", G_CALLBACK (otpFileEntryEnable), (gpointer)&st);
+    g_signal_connect (st.keyFileNameBox, "insert-text", G_CALLBACK (otpFileEntryDisableFromInsert), (gpointer)&st);
+    g_signal_connect (st.keyFileNameBox, "delete-text", G_CALLBACK (otpFileEntryEnableFromDelete), (gpointer)&st);
     gtk_widget_set_tooltip_text (st.keyFileNameBox, "Enter the full path to the key you want to use here");
     st.keyFileButton = gtk_button_new_with_label ("Select File");
     gtk_widget_set_tooltip_text (st.keyFileButton, "Select the key file you want to use here");
     g_signal_connect (st.keyFileButton, "clicked", G_CALLBACK (keyFileSelect), (gpointer)&st);
-    //FIXME Disabling these entries no longer works with pointers to structs
-    //g_signal_connect (st.keyFileButton, "clicked", G_CALLBACK (otpFileEntryDisable), (gpointer)&st);
+    g_signal_connect (st.keyFileButton, "clicked", G_CALLBACK (otpFileEntryDisableButtonFromClick), (gpointer)&st);
     
     GtkWidget *otpFileLabel = gtk_label_new ("One-Time-Pad File Path");
     st.otpFileNameBox = gtk_entry_new ();
-    //FIXME Disabling these entries no longer works with pointers to structs
-    //g_signal_connect (st.otpFileNameBox, "insert-text", G_CALLBACK (keyFileEntryDisable), (gpointer)&st);
-    //g_signal_connect (st.otpFileNameBox, "delete-text", G_CALLBACK (keyFileEntryEnable), (gpointer)&st);
+    g_signal_connect (st.otpFileNameBox, "insert-text", G_CALLBACK (keyFileEntryDisableFromInsert), (gpointer)&st);
+    g_signal_connect (st.otpFileNameBox, "delete-text", G_CALLBACK (keyFileEntryEnableFromDelete), (gpointer)&st);
     st.otpFileButton = gtk_button_new_with_label ("Select File");
     gtk_widget_set_tooltip_text (st.otpFileButton, "Select the one-time-pad file you want to use here");
     g_signal_connect (st.otpFileButton, "clicked", G_CALLBACK (otpFileSelect), (gpointer)&st);
-    //FIXME Disabling these entries no longer works with pointers to structs
-    //g_signal_connect (st.otpFileButton, "clicked", G_CALLBACK (keyFileEntryDisable), (gpointer)&st);
+    g_signal_connect (st.otpFileButton, "clicked", G_CALLBACK (keyFileEntryDisableButtonFromClick), (gpointer)&st);
     
     gtk_widget_set_tooltip_text (st.otpFileNameBox, "Enter the full path to the one-time-pad you want to use here\
     \n\n\
@@ -383,10 +397,6 @@ void choseDecrypt(GtkWidget *wid, gpointer ptr) {
 void on_cryptButton_clicked(GtkWidget *wid, gpointer ptr) {
     struct dataStruct *st = ptr;
     
-    //FIXME Disabling these entries no longer works with pointers to structs
-    //keyFileEntryEnable(wid, st);
-    //otpFileEntryEnable(wid, st);
-    
     gboolean passwordsMatch = FALSE;
     gboolean error = FALSE;
     
@@ -533,7 +543,7 @@ static void inputFileSelect (GtkWidget *wid, gpointer ptr)
     char *fileName;
     
     dialog = gtk_file_chooser_dialog_new ("Open File",
-                                          GTK_WINDOW (st),
+                                          GTK_WINDOW (ptr),
                                           action,
                                           "Cancel",
                                           GTK_RESPONSE_CANCEL,
@@ -561,7 +571,7 @@ static void outputFileSelect (GtkWidget *wid, gpointer ptr)
     char *fileName;
     
     dialog = gtk_file_chooser_dialog_new ("Save File",
-                                          GTK_WINDOW (st),
+                                          GTK_WINDOW (ptr),
                                           action,
                                           "Cancel",
                                           GTK_RESPONSE_CANCEL,
@@ -589,7 +599,7 @@ static void keyFileSelect (GtkWidget *wid, gpointer ptr)
     char *fileName;
     
     dialog = gtk_file_chooser_dialog_new ("Open File",
-                                          GTK_WINDOW (st),
+                                          GTK_WINDOW (ptr),
                                           action,
                                           "Cancel",
                                           GTK_RESPONSE_CANCEL,
@@ -617,7 +627,7 @@ static void otpFileSelect (GtkWidget *wid, gpointer ptr)
     char *fileName;
     
     dialog = gtk_file_chooser_dialog_new ("Open File",
-                                          GTK_WINDOW (st),
+                                          GTK_WINDOW (ptr),
                                           action,
                                           "Cancel",
                                           GTK_RESPONSE_CANCEL,
@@ -643,20 +653,25 @@ void passVisibilityToggle (GtkWidget *wid, gpointer ptr)
     gtk_entry_set_visibility(GTK_ENTRY (st->passwordVerificationBox), gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (wid)));
 }
 
-void otpFileEntryDisable (GtkWidget *wid, gpointer ptr)
+void keyFileEntryDisableFromInsert (GtkEditable* self,
+  gchar* new_text,
+  gint new_text_length,
+  gint* position,
+  gpointer user_data)
 {
-    struct dataStruct *st = (struct dataStruct *)ptr;
-    gtk_editable_set_editable(GTK_EDITABLE(st->otpFileNameBox), FALSE);
-    gtk_widget_set_sensitive (GTK_WIDGET(st->otpFileButton), FALSE);
-
-}
-
-void keyFileEntryDisable (GtkWidget *wid, gpointer ptr)
-{
-    struct dataStruct *st = (struct dataStruct *)ptr;
+    struct dataStruct *st = (struct dataStruct *)user_data;
     gtk_editable_set_editable(GTK_EDITABLE(st->keyFileNameBox), FALSE);
     gtk_widget_set_sensitive (GTK_WIDGET(st->keyFileButton), FALSE);
+}
 
+void keyFileEntryEnableFromDelete (GtkEditable* self,
+  gint start_pos,
+  gint end_pos,
+  gpointer user_data)
+{
+    struct dataStruct *st = (struct dataStruct *)user_data;
+    gtk_editable_set_editable(GTK_EDITABLE(st->keyFileNameBox), TRUE);
+    gtk_widget_set_sensitive (GTK_WIDGET(st->keyFileButton), TRUE);
 }
 
 void otpFileEntryEnable (GtkWidget *wid, gpointer ptr)
@@ -667,6 +682,41 @@ void otpFileEntryEnable (GtkWidget *wid, gpointer ptr)
 
 }
 
+void keyFileEntryDisableButtonFromClick (GtkWidget *wid, gpointer ptr)
+{
+    struct dataStruct *st = (struct dataStruct *)ptr;
+    gtk_editable_set_editable(GTK_EDITABLE(st->keyFileNameBox), FALSE);
+    gtk_widget_set_sensitive (GTK_WIDGET(st->keyFileButton), FALSE);
+}
+
+void otpFileEntryDisableFromInsert (GtkEditable* self,
+  gchar* new_text,
+  gint new_text_length,
+  gint* position,
+  gpointer user_data)
+{
+    struct dataStruct *st = (struct dataStruct *)user_data;
+    gtk_editable_set_editable(GTK_EDITABLE(st->otpFileNameBox), FALSE);
+    gtk_widget_set_sensitive (GTK_WIDGET(st->otpFileButton), FALSE);
+}
+
+void otpFileEntryEnableFromDelete (GtkEditable* self,
+  gint start_pos,
+  gint end_pos,
+  gpointer user_data)
+{
+    struct dataStruct *st = (struct dataStruct *)user_data;
+    gtk_editable_set_editable(GTK_EDITABLE(st->otpFileNameBox), TRUE);
+    gtk_widget_set_sensitive (GTK_WIDGET(st->otpFileButton), TRUE);
+}
+
+void otpFileEntryDisableButtonFromClick (GtkWidget *wid, gpointer ptr)
+{
+    struct dataStruct *st = (struct dataStruct *)ptr;
+    gtk_editable_set_editable(GTK_EDITABLE(st->otpFileNameBox), FALSE);
+    gtk_widget_set_sensitive (GTK_WIDGET(st->otpFileButton), FALSE);
+}
+
 void keyFileEntryEnable (GtkWidget *wid, gpointer ptr)
 {
     struct dataStruct *st = (struct dataStruct *)ptr;
@@ -674,4 +724,3 @@ void keyFileEntryEnable (GtkWidget *wid, gpointer ptr)
     gtk_widget_set_sensitive (GTK_WIDGET(st->keyFileButton), TRUE);
 
 }
-
