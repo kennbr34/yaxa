@@ -9,110 +9,112 @@
 #include "workthread.c"
 
 void on_cryptButton_clicked(GtkWidget *wid, gpointer ptr);
+void choseEncrypt(GtkWidget *wid, gpointer ptr);
+void choseDecrypt(GtkWidget *wid, gpointer ptr);
 static void inputFileSelect (GtkWidget *wid, gpointer ptr);
 static void outputFileSelect (GtkWidget *wid, gpointer ptr);
 static void keyFileSelect (GtkWidget *wid, gpointer ptr);
 static void otpFileSelect (GtkWidget *wid, gpointer ptr);
 void passVisibilityToggle (GtkWidget *wid, gpointer ptr);
-void otpFileEntryDisable (void);
-void keyFileEntryDisable (void);
-void otpFileEntryEnable (void);
-void keyFileEntryEnable (void);
+void keyFileEntryDisableFromInsert (GtkEditable* self,
+gchar* new_text,
+  gint new_text_length,
+  gint* position,
+  gpointer user_data);
+void keyFileEntryEnableFromDelete (GtkEditable* self,
+  gint start_pos,
+  gint end_pos,
+  gpointer user_data);
+void keyFileEntryDisableButtonFromClick (GtkWidget *wid, gpointer ptr);
+void otpFileEntryDisableFromInsert (GtkEditable* self,
+gchar* new_text,
+  gint new_text_length,
+  gint* position,
+  gpointer user_data);
+void otpFileEntryEnableFromDelete (GtkEditable* self,
+  gint start_pos,
+  gint end_pos,
+  gpointer user_data);
+void otpFileEntryDisableButtonFromClick (GtkWidget *wid, gpointer ptr);
+void otpFileEntryEnable (GtkWidget *wid, gpointer ptr);
+void keyFileEntryEnable (GtkWidget *wid, gpointer ptr);
 static gboolean updateStatus(gpointer user_data);
 static gboolean updateProgress(gpointer user_data);
 static gboolean updateOverallProgress(gpointer user_data);
 
-GtkWidget *inputFileNameBox;
-GtkWidget *outputFileNameBox;
-GtkWidget *keyFileNameBox;
-GtkWidget *otpFileNameBox;
-GtkWidget *passwordBox;
-GtkWidget *passwordVerificationBox;
-
-GtkWidget *nFactorTextBox;
-GtkWidget *rFactorTextBox;
-GtkWidget *pFactorTextBox;
-
-GtkWidget *otpFileButton;
-GtkWidget *keyFileButton;
-
-GtkWidget *keySizeComboBox;
-GtkWidget *macBufSizeComboBox;
-GtkWidget *msgBufSizeComboBox;
-
-const char *inputFilePath;
-const char *outputFilePath;
-const char *keyFilePath;
-const char *otpFilePath;
-const char *passWord;
-const char *verificationPass;
-const char *keySizeComboBoxText;
-const char *macBufSizeComboBoxText;
-const char *msgBufSizeComboBoxText;
-
 int main(int argc, char *argv[])
 {
-    /*These must be mapped as shared memory for the worker thread to manipulate their values in the main thread*/
-    statusMessage = mmap(NULL, 256, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
-    progressFraction = mmap(NULL, sizeof(double), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
-    overallProgressFraction = mmap(NULL, sizeof(double), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+    static struct dataStruct st = {0};
     
-    signal(SIGINT, signalHandler);
+    //struct dataStruct *st = g_new0(struct dataStruct, 1);
+    
+    st.cryptSt.nFactor = DEFAULT_SCRYPT_N;
+    st.cryptSt.pFactor = DEFAULT_SCRYPT_P;
+    st.cryptSt.rFactor = DEFAULT_SCRYPT_R;
+    st.cryptSt.k = 0;
+    
+    st.cryptSt.keyBufSize = YAXA_KEYBUF_SIZE;
+    st.cryptSt.genHmacBufSize = 1024 * 1024;
+    st.cryptSt.msgBufSize = 1024 * 1024;
+    st.cryptSt.yaxaSaltSize = YAXA_KEYBUF_SIZE / YAXA_KEY_CHUNK_SIZE;
 
-    atexit(cleanUpBuffers);
+    /*These must be mapped as shared memory for the worker thread to manipulate their values in the main thread*/
+    st.guiSt.statusMessage = mmap(NULL, 256, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+    st.guiSt.progressFraction = mmap(NULL, sizeof(double), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+    st.guiSt.overallProgressFraction = mmap(NULL, sizeof(double), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
 
-    allocateBuffers();
+    allocateBuffers(&st);
 
     OpenSSL_add_all_algorithms();
     
     gtk_init (&argc, &argv);
     
-    GtkWidget *win = gtk_window_new (GTK_WINDOW_TOPLEVEL);
+    st.guiSt.win = gtk_window_new (GTK_WINDOW_TOPLEVEL);
     
-    gtk_window_set_title(GTK_WINDOW (win), "YAXA File Encryption Utility");
+    gtk_window_set_title(GTK_WINDOW (st.guiSt.win), "YAXA File Encryption Utility");
     
     GtkWidget *inputFileLabel = gtk_label_new ("Input File Path");
-    inputFileNameBox = gtk_entry_new ();
-    gtk_widget_set_tooltip_text (inputFileNameBox, "Enter the full path to the file you want to encrypt/decrypt here");
+    st.guiSt.inputFileNameBox = gtk_entry_new ();
+    gtk_widget_set_tooltip_text (st.guiSt.inputFileNameBox, "Enter the full path to the file you want to encrypt/decrypt here");
     GtkWidget *inputFileButton = gtk_button_new_with_label ("Select File");
     gtk_widget_set_tooltip_text (inputFileButton, "Select the file you want to encrypt/decrypt to fill in this path");
-    g_signal_connect (inputFileButton, "clicked", G_CALLBACK (inputFileSelect), win);
+    g_signal_connect (inputFileButton, "clicked", G_CALLBACK (inputFileSelect), (gpointer)&st);
     
     GtkWidget *outputFileLabel = gtk_label_new ("Output File Path");
-    outputFileNameBox = gtk_entry_new ();
-    gtk_widget_set_tooltip_text (outputFileNameBox, "Enter the full path to where you want to save the result of encryption/decryption");
+    st.guiSt.outputFileNameBox = gtk_entry_new ();
+    gtk_widget_set_tooltip_text (st.guiSt.outputFileNameBox, "Enter the full path to where you want to save the result of encryption/decryption");
     GtkWidget *outputFileButton = gtk_button_new_with_label ("Select File");
     gtk_widget_set_tooltip_text (outputFileButton, "Select where you want to save the result of encryption/decryption to fill in this path");
-    g_signal_connect (outputFileButton, "clicked", G_CALLBACK (outputFileSelect), win);
+    g_signal_connect (outputFileButton, "clicked", G_CALLBACK (outputFileSelect), (gpointer)&st);
     
     GtkWidget *passwordLabel = gtk_label_new ("Password");
-    passwordBox = gtk_entry_new ();
-    gtk_widget_set_tooltip_text (passwordBox, "Password to derive key from");
-    gtk_entry_set_invisible_char(GTK_ENTRY (passwordBox),'*');
-    gtk_entry_set_visibility(GTK_ENTRY (passwordBox), FALSE);
+    st.guiSt.passwordBox = gtk_entry_new ();
+    gtk_widget_set_tooltip_text (st.guiSt.passwordBox, "Password to derive key from");
+    gtk_entry_set_invisible_char(GTK_ENTRY (st.guiSt.passwordBox),'*');
+    gtk_entry_set_visibility(GTK_ENTRY (st.guiSt.passwordBox), FALSE);
     
     GtkWidget *verificationLabel = gtk_label_new ("Verify Password");
-    passwordVerificationBox = gtk_entry_new ();
-    gtk_widget_set_tooltip_text (passwordVerificationBox, "Note: Not needed for decryption");
-    gtk_entry_set_invisible_char(GTK_ENTRY (passwordVerificationBox),'*');
-    gtk_entry_set_visibility(GTK_ENTRY (passwordVerificationBox), FALSE);
+    st.guiSt.passwordVerificationBox = gtk_entry_new ();
+    gtk_widget_set_tooltip_text (st.guiSt.passwordVerificationBox, "Note: Not needed for decryption");
+    gtk_entry_set_invisible_char(GTK_ENTRY (st.guiSt.passwordVerificationBox),'*');
+    gtk_entry_set_visibility(GTK_ENTRY (st.guiSt.passwordVerificationBox), FALSE);
     
     GtkWidget *scryptWorkFactorsLabel = gtk_label_new ("scrypt work factors:");
     
     GtkWidget *nFactorLabel = gtk_label_new ("N Factor");
     GtkAdjustment *nFactorSpinButtonAdj = gtk_adjustment_new (DEFAULT_SCRYPT_N, 0, DEFAULT_SCRYPT_N * 8, 1048576, 0, 0);
-    nFactorTextBox = gtk_spin_button_new (GTK_ADJUSTMENT (nFactorSpinButtonAdj), 0, 0);
-    gtk_widget_set_tooltip_text (nFactorTextBox, "This is the N factor that will be used by scrypt");
+    st.guiSt.nFactorTextBox = gtk_spin_button_new (GTK_ADJUSTMENT (nFactorSpinButtonAdj), 0, 0);
+    gtk_widget_set_tooltip_text (st.guiSt.nFactorTextBox, "This is the N factor that will be used by scrypt");
     
     GtkWidget *rFactorLabel = gtk_label_new ("r Factor");
     GtkAdjustment *rFactorSpinButtonAdj = gtk_adjustment_new (DEFAULT_SCRYPT_R, 0, 10, 1, 0, 0);
-    rFactorTextBox = gtk_spin_button_new (GTK_ADJUSTMENT (rFactorSpinButtonAdj), 0, 0);
-    gtk_widget_set_tooltip_text (rFactorTextBox, "This is the r factor that will be used by scrypt");
+    st.guiSt.rFactorTextBox = gtk_spin_button_new (GTK_ADJUSTMENT (rFactorSpinButtonAdj), 0, 0);
+    gtk_widget_set_tooltip_text (st.guiSt.rFactorTextBox, "This is the r factor that will be used by scrypt");
     
     GtkWidget *pFactorLabel = gtk_label_new ("p Factor");
     GtkAdjustment *pFactorSpinButtonAdj = gtk_adjustment_new (DEFAULT_SCRYPT_P, 0, 10, 1, 0, 0);
-    pFactorTextBox = gtk_spin_button_new (GTK_ADJUSTMENT (pFactorSpinButtonAdj), 0, 0);
-    gtk_widget_set_tooltip_text (pFactorTextBox, "This is the p factor that will be used by scrypt");
+    st.guiSt.pFactorTextBox = gtk_spin_button_new (GTK_ADJUSTMENT (pFactorSpinButtonAdj), 0, 0);
+    gtk_widget_set_tooltip_text (st.guiSt.pFactorTextBox, "This is the p factor that will be used by scrypt");
     
     char scryptToolTipText[] = "\
     scrypt is a Key Derivation Function which derives a key from a password \
@@ -136,60 +138,60 @@ int main(int argc, char *argv[])
     
     
     GtkWidget *keySizeLabel = gtk_label_new ("Key Size");
-    keySizeComboBox = gtk_combo_box_text_new ();
-    gtk_widget_set_tooltip_text (keySizeComboBox, "This controls the size of the key that will be derived from the password");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (keySizeComboBox), "16 bytes");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (keySizeComboBox), "32 bytes");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (keySizeComboBox), "64 bytes");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (keySizeComboBox), "128 bytes");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (keySizeComboBox), "256 bytes");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (keySizeComboBox), "512 bytes");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (keySizeComboBox), "2 Kb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (keySizeComboBox), "4 Kb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (keySizeComboBox), "8 Kb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (keySizeComboBox), "16 Kb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (keySizeComboBox), "32 Kb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (keySizeComboBox), "64 Kb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (keySizeComboBox), "128 Kb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (keySizeComboBox), "256 Kb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (keySizeComboBox), "512 Kb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (keySizeComboBox), "1 Mb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (keySizeComboBox), "2 Mb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (keySizeComboBox), "4 Mb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (keySizeComboBox), "8 Mb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (keySizeComboBox), "16 Mb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (keySizeComboBox), "32 Mb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (keySizeComboBox), "64 Mb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (keySizeComboBox), "128 Mb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (keySizeComboBox), "256 Mb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (keySizeComboBox), "512 Mb");
-    gtk_combo_box_set_active (GTK_COMBO_BOX (keySizeComboBox), 20);
+    st.guiSt.keySizeComboBox = gtk_combo_box_text_new ();
+    gtk_widget_set_tooltip_text (st.guiSt.keySizeComboBox, "This controls the size of the key that will be derived from the password");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.keySizeComboBox), "16 bytes");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.keySizeComboBox), "32 bytes");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.keySizeComboBox), "64 bytes");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.keySizeComboBox), "128 bytes");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.keySizeComboBox), "256 bytes");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.keySizeComboBox), "512 bytes");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.keySizeComboBox), "2 Kb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.keySizeComboBox), "4 Kb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.keySizeComboBox), "8 Kb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.keySizeComboBox), "16 Kb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.keySizeComboBox), "32 Kb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.keySizeComboBox), "64 Kb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.keySizeComboBox), "128 Kb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.keySizeComboBox), "256 Kb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.keySizeComboBox), "512 Kb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.keySizeComboBox), "1 Mb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.keySizeComboBox), "2 Mb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.keySizeComboBox), "4 Mb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.keySizeComboBox), "8 Mb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.keySizeComboBox), "16 Mb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.keySizeComboBox), "32 Mb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.keySizeComboBox), "64 Mb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.keySizeComboBox), "128 Mb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.keySizeComboBox), "256 Mb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.keySizeComboBox), "512 Mb");
+    gtk_combo_box_set_active (GTK_COMBO_BOX (st.guiSt.keySizeComboBox), 20);
     
     GtkWidget *visibilityButton = gtk_check_button_new_with_label ("Show Password");
     gtk_widget_set_tooltip_text (visibilityButton, "Hint: Use this to avoid typos");
     gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (visibilityButton), FALSE);
-    g_signal_connect (visibilityButton, "toggled", G_CALLBACK (passVisibilityToggle),NULL);
+    g_signal_connect (visibilityButton, "toggled", G_CALLBACK (passVisibilityToggle),(gpointer)&st);
     
     GtkWidget *keyFileLabel = gtk_label_new ("Key File Path");
-    keyFileNameBox = gtk_entry_new ();
-    g_signal_connect (keyFileNameBox, "insert-text", G_CALLBACK (otpFileEntryDisable), NULL);
-    g_signal_connect (keyFileNameBox, "delete-text", G_CALLBACK (otpFileEntryEnable), NULL);
-    gtk_widget_set_tooltip_text (keyFileNameBox, "Enter the full path to the key you want to use here");
-    keyFileButton = gtk_button_new_with_label ("Select File");
-    gtk_widget_set_tooltip_text (keyFileButton, "Select the key file you want to use here");
-    g_signal_connect (keyFileButton, "clicked", G_CALLBACK (keyFileSelect), win);
-    g_signal_connect (keyFileButton, "clicked", G_CALLBACK (otpFileEntryDisable), NULL);
+    st.guiSt.keyFileNameBox = gtk_entry_new ();
+    g_signal_connect (st.guiSt.keyFileNameBox, "insert-text", G_CALLBACK (otpFileEntryDisableFromInsert), (gpointer)&st);
+    g_signal_connect (st.guiSt.keyFileNameBox, "delete-text", G_CALLBACK (otpFileEntryEnableFromDelete), (gpointer)&st);
+    gtk_widget_set_tooltip_text (st.guiSt.keyFileNameBox, "Enter the full path to the key you want to use here");
+    st.guiSt.keyFileButton = gtk_button_new_with_label ("Select File");
+    gtk_widget_set_tooltip_text (st.guiSt.keyFileButton, "Select the key file you want to use here");
+    g_signal_connect (st.guiSt.keyFileButton, "clicked", G_CALLBACK (keyFileSelect), (gpointer)&st);
+    g_signal_connect (st.guiSt.keyFileButton, "clicked", G_CALLBACK (otpFileEntryDisableButtonFromClick), (gpointer)&st);
     
     GtkWidget *otpFileLabel = gtk_label_new ("One-Time-Pad File Path");
-    otpFileNameBox = gtk_entry_new ();
-    g_signal_connect (otpFileNameBox, "insert-text", G_CALLBACK (keyFileEntryDisable), NULL);
-    g_signal_connect (otpFileNameBox, "delete-text", G_CALLBACK (keyFileEntryEnable), NULL);
-    otpFileButton = gtk_button_new_with_label ("Select File");
-    gtk_widget_set_tooltip_text (otpFileButton, "Select the one-time-pad file you want to use here");
-    g_signal_connect (otpFileButton, "clicked", G_CALLBACK (otpFileSelect), win);
-    g_signal_connect (otpFileButton, "clicked", G_CALLBACK (keyFileEntryDisable), NULL);
+    st.guiSt.otpFileNameBox = gtk_entry_new ();
+    g_signal_connect (st.guiSt.otpFileNameBox, "insert-text", G_CALLBACK (keyFileEntryDisableFromInsert), (gpointer)&st);
+    g_signal_connect (st.guiSt.otpFileNameBox, "delete-text", G_CALLBACK (keyFileEntryEnableFromDelete), (gpointer)&st);
+    st.guiSt.otpFileButton = gtk_button_new_with_label ("Select File");
+    gtk_widget_set_tooltip_text (st.guiSt.otpFileButton, "Select the one-time-pad file you want to use here");
+    g_signal_connect (st.guiSt.otpFileButton, "clicked", G_CALLBACK (otpFileSelect), (gpointer)&st);
+    g_signal_connect (st.guiSt.otpFileButton, "clicked", G_CALLBACK (keyFileEntryDisableButtonFromClick), (gpointer)&st);
     
-    gtk_widget_set_tooltip_text (otpFileNameBox, "Enter the full path to the one-time-pad you want to use here\
+    gtk_widget_set_tooltip_text (st.guiSt.otpFileNameBox, "Enter the full path to the one-time-pad you want to use here\
     \n\n\
     Using a one-time-pad means using something like /dev/urandom or another random-number generator\
     to produce a keystream that will be as long as the file being encrypted is. This cannot be used\
@@ -198,333 +200,348 @@ int main(int argc, char *argv[])
     \n***Very Important:*** Must use same size buffers between encryption and decryption");
     
     GtkWidget *macBufSizeLabel = gtk_label_new ("Authentication Buffer Size");
-    macBufSizeComboBox = gtk_combo_box_text_new ();
-    gtk_widget_set_tooltip_text (macBufSizeComboBox, "This controls the size of the buffer used for authenticating data");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "1 byte");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "2 bytes");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "4 bytes");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "8 bytes");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "16 bytes");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "32 bytes");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "64 bytes");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "128 bytes");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "256 bytes");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "512 bytes");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "1 Kb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "2 Kb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "4 Kb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "8 Kb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "16 Kb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "32 Kb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "64 Kb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "128 Kb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "256 Kb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "512 Kb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "1 Mb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "2 Mb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "4 Mb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "8 Mb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "16 Mb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "32 Mb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "64 Mb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "128 Mb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "256 Mb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "512 Mb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "1 Gb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "2 Gb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "4 Gb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox), "8 Gb");
-    gtk_combo_box_set_active (GTK_COMBO_BOX (macBufSizeComboBox), 20);
+    st.guiSt.macBufSizeComboBox = gtk_combo_box_text_new ();
+    gtk_widget_set_tooltip_text (st.guiSt.macBufSizeComboBox, "This controls the size of the buffer used for authenticating data");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "1 byte");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "2 bytes");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "4 bytes");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "8 bytes");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "16 bytes");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "32 bytes");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "64 bytes");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "128 bytes");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "256 bytes");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "512 bytes");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "1 Kb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "2 Kb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "4 Kb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "8 Kb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "16 Kb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "32 Kb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "64 Kb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "128 Kb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "256 Kb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "512 Kb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "1 Mb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "2 Mb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "4 Mb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "8 Mb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "16 Mb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "32 Mb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "64 Mb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "128 Mb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "256 Mb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "512 Mb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "1 Gb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "2 Gb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "4 Gb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "8 Gb");
+    gtk_combo_box_set_active (GTK_COMBO_BOX (st.guiSt.macBufSizeComboBox), 20);
     
     GtkWidget *msgBufSizeLabel = gtk_label_new ("File Buffer Size");
-    msgBufSizeComboBox = gtk_combo_box_text_new ();
-    gtk_widget_set_tooltip_text (msgBufSizeComboBox, "This controls the size of the buffer used for encryption/decryption data");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "1 byte");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "2 bytes");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "4 bytes");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "8 bytes");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "16 bytes");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "32 bytes");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "64 bytes");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "128 bytes");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "256 bytes");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "512 bytes");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "1 Kb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "2 Kb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "4 Kb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "8 Kb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "16 Kb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "32 Kb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "64 Kb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "128 Kb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "256 Kb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "512 Kb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "1 Mb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "2 Mb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "4 Mb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "8 Mb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "16 Mb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "32 Mb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "64 Mb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "128 Mb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "256 Mb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "512 Mb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "1 Gb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "2 Gb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "4 Gb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox), "8 Gb");
-    gtk_combo_box_set_active (GTK_COMBO_BOX (msgBufSizeComboBox), 20);
+    st.guiSt.msgBufSizeComboBox = gtk_combo_box_text_new ();
+    gtk_widget_set_tooltip_text (st.guiSt.msgBufSizeComboBox, "This controls the size of the buffer used for encryption/decryption data");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "1 byte");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "2 bytes");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "4 bytes");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "8 bytes");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "16 bytes");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "32 bytes");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "64 bytes");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "128 bytes");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "256 bytes");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "512 bytes");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "1 Kb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "2 Kb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "4 Kb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "8 Kb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "16 Kb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "32 Kb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "64 Kb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "128 Kb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "256 Kb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "512 Kb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "1 Mb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "2 Mb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "4 Mb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "8 Mb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "16 Mb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "32 Mb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "64 Mb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "128 Mb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "256 Mb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "512 Mb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "1 Gb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "2 Gb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "4 Gb");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "8 Gb");
+    gtk_combo_box_set_active (GTK_COMBO_BOX (st.guiSt.msgBufSizeComboBox), 20);
     
     GtkWidget *encryptButton = gtk_button_new_with_label ("Encrypt");
-    g_signal_connect (encryptButton, "clicked", G_CALLBACK (on_cryptButton_clicked), (gpointer)"encrypt");
+    g_signal_connect (encryptButton, "clicked", G_CALLBACK (choseEncrypt), (gpointer)&st);
+    g_signal_connect (encryptButton, "clicked", G_CALLBACK (on_cryptButton_clicked), (gpointer)&st);
         
     GtkWidget *decryptButton = gtk_button_new_with_label ("Decrypt");
-    g_signal_connect (decryptButton, "clicked", G_CALLBACK (on_cryptButton_clicked), (gpointer)"decrypt");
+    g_signal_connect (decryptButton, "clicked", G_CALLBACK (choseDecrypt), (gpointer)&st);
+    g_signal_connect (decryptButton, "clicked", G_CALLBACK (on_cryptButton_clicked), (gpointer)&st);
     
-    progressBar = gtk_progress_bar_new ();
-    gtk_progress_bar_set_text (GTK_PROGRESS_BAR (progressBar), "Step Progress");
-    gtk_progress_bar_set_show_text (GTK_PROGRESS_BAR (progressBar), TRUE);
-    *progressFraction = 0.0;
-    g_timeout_add (50, updateProgress, NULL);
+    st.guiSt.progressBar = gtk_progress_bar_new ();
+    gtk_progress_bar_set_text (GTK_PROGRESS_BAR (st.guiSt.progressBar), "Step Progress");
+    gtk_progress_bar_set_show_text (GTK_PROGRESS_BAR (st.guiSt.progressBar), TRUE);
+    *(st.guiSt.progressFraction) = 0.0;
+    g_timeout_add (50, updateProgress, (gpointer)&st);
     
-    overallProgressBar = gtk_progress_bar_new ();
-    gtk_progress_bar_set_text (GTK_PROGRESS_BAR (overallProgressBar), "Overall Progress");
-    gtk_progress_bar_set_show_text (GTK_PROGRESS_BAR (overallProgressBar), TRUE);
-    *overallProgressFraction = 0.0;
-    g_timeout_add (50, updateOverallProgress, NULL);
+    st.guiSt.overallProgressBar = gtk_progress_bar_new ();
+    gtk_progress_bar_set_text (GTK_PROGRESS_BAR (st.guiSt.overallProgressBar), "Overall Progress");
+    gtk_progress_bar_set_show_text (GTK_PROGRESS_BAR (st.guiSt.overallProgressBar), TRUE);
+    *(st.guiSt.overallProgressFraction) = 0.0;
+    g_timeout_add (50, updateOverallProgress, (gpointer)&st);
     
-    statusBar = gtk_statusbar_new ();
-    gtk_widget_set_tooltip_text (statusBar, "Program will show status updates here");
-    strcpy(statusMessage,"Ready");
-    g_timeout_add (50, updateStatus, statusMessage);
+    st.guiSt.statusBar = gtk_statusbar_new ();
+    gtk_widget_set_tooltip_text (st.guiSt.statusBar, "Program will show status updates here");
+    strcpy(st.guiSt.statusMessage,"Ready");
+    g_timeout_add (50, updateStatus, (gpointer)&st);
     
     GtkWidget *grid = gtk_grid_new();
     gtk_widget_set_hexpand (inputFileLabel, TRUE);
     gtk_grid_attach (GTK_GRID (grid), inputFileLabel, 0, 0, 1, 1);
-    gtk_grid_attach (GTK_GRID (grid), inputFileNameBox, 0, 2, 1, 1);
+    gtk_grid_attach (GTK_GRID (grid), st.guiSt.inputFileNameBox, 0, 2, 1, 1);
     gtk_grid_attach (GTK_GRID (grid), inputFileButton, 1, 2, 1, 1);
     gtk_grid_attach (GTK_GRID (grid), outputFileLabel, 0, 4, 1, 1);
-    gtk_grid_attach (GTK_GRID (grid), outputFileNameBox, 0, 5, 1, 1);
+    gtk_grid_attach (GTK_GRID (grid), st.guiSt.outputFileNameBox, 0, 5, 1, 1);
     gtk_grid_attach (GTK_GRID (grid), outputFileButton, 1, 5, 1, 1);
     gtk_grid_attach (GTK_GRID (grid), passwordLabel, 0, 7, 1, 1);
-    gtk_grid_attach (GTK_GRID (grid), passwordBox, 0, 8, 1, 1);
+    gtk_grid_attach (GTK_GRID (grid), st.guiSt.passwordBox, 0, 8, 1, 1);
     gtk_grid_attach (GTK_GRID (grid), visibilityButton, 1, 8, 1, 1);
     gtk_grid_attach (GTK_GRID (grid), verificationLabel, 0, 9, 1, 1);
     gtk_grid_attach (GTK_GRID (grid), keySizeLabel, 0, 11, 1, 1);
-    gtk_grid_attach (GTK_GRID (grid), keySizeComboBox, 1, 11, 1, 1);
-    gtk_grid_attach (GTK_GRID (grid), passwordVerificationBox, 0, 10, 1, 1);
+    gtk_grid_attach (GTK_GRID (grid), st.guiSt.keySizeComboBox, 1, 11, 1, 1);
+    gtk_grid_attach (GTK_GRID (grid), st.guiSt.passwordVerificationBox, 0, 10, 1, 1);
     gtk_grid_attach (GTK_GRID (grid), scryptWorkFactorsLabel, 0, 12, 1, 1);
     gtk_grid_attach (GTK_GRID (grid), nFactorLabel, 0, 13, 1, 1);
-    gtk_grid_attach (GTK_GRID (grid), nFactorTextBox, 1, 13, 1, 1);
+    gtk_grid_attach (GTK_GRID (grid), st.guiSt.nFactorTextBox, 1, 13, 1, 1);
     gtk_grid_attach (GTK_GRID (grid), rFactorLabel, 0, 15, 1, 1);
-    gtk_grid_attach (GTK_GRID (grid), rFactorTextBox, 1, 15, 1, 1);
+    gtk_grid_attach (GTK_GRID (grid), st.guiSt.rFactorTextBox, 1, 15, 1, 1);
     gtk_grid_attach (GTK_GRID (grid), pFactorLabel, 0, 17, 1, 1);
-    gtk_grid_attach (GTK_GRID (grid), pFactorTextBox, 1, 17, 1, 1);
+    gtk_grid_attach (GTK_GRID (grid), st.guiSt.pFactorTextBox, 1, 17, 1, 1);
     gtk_grid_attach (GTK_GRID (grid), keyFileLabel, 0, 18, 1, 1);
-    gtk_grid_attach (GTK_GRID (grid), keyFileNameBox, 0, 19, 1, 1);
-    gtk_grid_attach (GTK_GRID (grid), keyFileButton, 1, 19, 1, 1);
+    gtk_grid_attach (GTK_GRID (grid), st.guiSt.keyFileNameBox, 0, 19, 1, 1);
+    gtk_grid_attach (GTK_GRID (grid), st.guiSt.keyFileButton, 1, 19, 1, 1);
     gtk_grid_attach (GTK_GRID (grid), otpFileLabel, 0, 20, 1, 1);
-    gtk_grid_attach (GTK_GRID (grid), otpFileNameBox, 0, 21, 1, 1);
-    gtk_grid_attach (GTK_GRID (grid), otpFileButton, 1, 21, 1, 1);
+    gtk_grid_attach (GTK_GRID (grid), st.guiSt.otpFileNameBox, 0, 21, 1, 1);
+    gtk_grid_attach (GTK_GRID (grid), st.guiSt.otpFileButton, 1, 21, 1, 1);
     gtk_grid_attach (GTK_GRID (grid), macBufSizeLabel, 0, 24, 1, 1);
-    gtk_grid_attach (GTK_GRID (grid), macBufSizeComboBox, 0, 25, 1, 1);
+    gtk_grid_attach (GTK_GRID (grid), st.guiSt.macBufSizeComboBox, 0, 25, 1, 1);
     gtk_grid_attach (GTK_GRID (grid), msgBufSizeLabel, 1, 24, 1, 1);
-    gtk_grid_attach (GTK_GRID (grid), msgBufSizeComboBox, 1, 25, 1, 1);
+    gtk_grid_attach (GTK_GRID (grid), st.guiSt.msgBufSizeComboBox, 1, 25, 1, 1);
     gtk_grid_attach (GTK_GRID (grid), encryptButton, 0, 26, 2, 1);
     gtk_grid_attach (GTK_GRID (grid), decryptButton, 0, 27, 2, 1);
-    gtk_grid_attach (GTK_GRID (grid), progressBar, 0, 28, 2, 1);
-    gtk_grid_attach (GTK_GRID (grid), overallProgressBar, 0, 29, 2, 1);
-    gtk_grid_attach (GTK_GRID (grid), statusBar, 0, 30, 2, 1);
+    gtk_grid_attach (GTK_GRID (grid), st.guiSt.progressBar, 0, 28, 2, 1);
+    gtk_grid_attach (GTK_GRID (grid), st.guiSt.overallProgressBar, 0, 29, 2, 1);
+    gtk_grid_attach (GTK_GRID (grid), st.guiSt.statusBar, 0, 30, 2, 1);
     
     
-    gtk_container_add (GTK_CONTAINER (win), grid);
+    gtk_container_add (GTK_CONTAINER (st.guiSt.win), grid);
     
-    g_signal_connect (win, "delete_event", G_CALLBACK (gtk_main_quit), NULL);
+    g_signal_connect (st.guiSt.win, "delete_event", G_CALLBACK (gtk_main_quit), NULL);
     
-    gtk_widget_show_all (win);
+    gtk_widget_show_all (st.guiSt.win);
     gtk_main ();
+    
+    cleanUpBuffers(&st);
 
     exit(EXIT_SUCCESS);
 }
 
 static gboolean updateStatus(gpointer user_data)
 {
-    statusContextID = gtk_statusbar_get_context_id (GTK_STATUSBAR (statusBar), "Statusbar");
-    gtk_statusbar_push (GTK_STATUSBAR (statusBar), GPOINTER_TO_INT (statusContextID), statusMessage);
+    struct dataStruct *st = (struct dataStruct *)user_data;
+    st->guiSt.statusContextID = gtk_statusbar_get_context_id (GTK_STATUSBAR (st->guiSt.statusBar), "Statusbar");
+    gtk_statusbar_push (GTK_STATUSBAR (st->guiSt.statusBar), GPOINTER_TO_INT (st->guiSt.statusContextID), st->guiSt.statusMessage);
     
     return TRUE;
 }
 
 static gboolean updateProgress(gpointer user_data)
 {
-    gtk_progress_bar_set_fraction (GTK_PROGRESS_BAR (progressBar), *progressFraction);
-    if(*progressFraction > 1)
-        *progressFraction = 0.0;
+    struct dataStruct *st = (struct dataStruct *)user_data;
+    gtk_progress_bar_set_fraction (GTK_PROGRESS_BAR (st->guiSt.progressBar), *(st->guiSt.progressFraction));
+    if(*(st->guiSt.progressFraction) > 1)
+        *(st->guiSt.progressFraction) = 0.0;
         
     return TRUE;
 }
 
 static gboolean updateOverallProgress(gpointer user_data)
 {
-    gtk_progress_bar_set_fraction (GTK_PROGRESS_BAR (overallProgressBar), *overallProgressFraction);
-    if(*overallProgressFraction > 1)
-        *overallProgressFraction = 0.0;
+    struct dataStruct *st = (struct dataStruct *)user_data;
+    gtk_progress_bar_set_fraction (GTK_PROGRESS_BAR (st->guiSt.overallProgressBar), *(st->guiSt.overallProgressFraction));
+    if(*(st->guiSt.overallProgressFraction) > 1)
+        *(st->guiSt.overallProgressFraction) = 0.0;
         
     return TRUE;
 }
 
+void choseEncrypt(GtkWidget *wid, gpointer ptr) {
+    struct dataStruct *st = (struct dataStruct *) ptr;
+    strcpy(st->guiSt.encryptOrDecrypt,"encrypt");
+}
+
+void choseDecrypt(GtkWidget *wid, gpointer ptr) {
+    struct dataStruct *st = (struct dataStruct *) ptr;
+    strcpy(st->guiSt.encryptOrDecrypt,"decrypt");
+}
+
 void on_cryptButton_clicked(GtkWidget *wid, gpointer ptr) {
-    char *encryptOrDecrypt = (char *)ptr;
-    
-    keyFileEntryEnable();
-    otpFileEntryEnable();
+    struct dataStruct *st = ptr;
     
     gboolean passwordsMatch = FALSE;
     gboolean error = FALSE;
     
-    inputFilePath = gtk_entry_get_text (GTK_ENTRY (inputFileNameBox));
-    outputFilePath = gtk_entry_get_text (GTK_ENTRY (outputFileNameBox));
-    passWord = gtk_entry_get_text (GTK_ENTRY (passwordBox));
-    verificationPass = gtk_entry_get_text (GTK_ENTRY (passwordVerificationBox));
-    keyFilePath = gtk_entry_get_text (GTK_ENTRY (keyFileNameBox));
-    otpFilePath = gtk_entry_get_text (GTK_ENTRY (otpFileNameBox));
-    keySizeComboBoxText = gtk_combo_box_text_get_active_text (GTK_COMBO_BOX_TEXT (keySizeComboBox));
-    macBufSizeComboBoxText = gtk_combo_box_text_get_active_text (GTK_COMBO_BOX_TEXT (macBufSizeComboBox));
-    msgBufSizeComboBoxText = gtk_combo_box_text_get_active_text (GTK_COMBO_BOX_TEXT (msgBufSizeComboBox));
+    st->guiSt.inputFilePath = gtk_entry_get_text (GTK_ENTRY (st->guiSt.inputFileNameBox));
+    st->guiSt.outputFilePath = gtk_entry_get_text (GTK_ENTRY (st->guiSt.outputFileNameBox));
+    st->guiSt.passWord = gtk_entry_get_text (GTK_ENTRY (st->guiSt.passwordBox));
+    st->guiSt.verificationPass = gtk_entry_get_text (GTK_ENTRY (st->guiSt.passwordVerificationBox));
+    st->guiSt.keyFilePath = gtk_entry_get_text (GTK_ENTRY (st->guiSt.keyFileNameBox));
+    st->guiSt.otpFilePath = gtk_entry_get_text (GTK_ENTRY (st->guiSt.otpFileNameBox));
+    st->guiSt.keySizeComboBoxText = gtk_combo_box_text_get_active_text (GTK_COMBO_BOX_TEXT (st->guiSt.keySizeComboBox));
+    st->guiSt.macBufSizeComboBoxText = gtk_combo_box_text_get_active_text (GTK_COMBO_BOX_TEXT (st->guiSt.macBufSizeComboBox));
+    st->guiSt.msgBufSizeComboBoxText = gtk_combo_box_text_get_active_text (GTK_COMBO_BOX_TEXT (st->guiSt.msgBufSizeComboBox));
     
-    if(strlen(inputFilePath)) {
-        optSt.inputFileGiven = true;
-        strcpy(inputFileName,inputFilePath);
+    if(strlen(st->guiSt.inputFilePath)) {
+        st->optSt.inputFileGiven = true;
+        strcpy(st->fileNameSt.inputFileName,st->guiSt.inputFilePath);
     } else {
-        strcpy(statusMessage,"Need input file...");
+        strcpy(st->guiSt.statusMessage,"Need input file...");
         error = TRUE;
     }
     
-    if(strlen(outputFilePath)) {
-        optSt.outputFileGiven = true;
-        strcpy(outputFileName,outputFilePath);
+    if(strlen(st->guiSt.outputFilePath)) {
+        st->optSt.outputFileGiven = true;
+        strcpy(st->fileNameSt.outputFileName,st->guiSt.outputFilePath);
     } else {
-        strcpy(statusMessage,"Need output file...");
+        strcpy(st->guiSt.statusMessage,"Need output file...");
         error = TRUE;
     }
     
-    if(!strcmp(inputFilePath,outputFilePath)) {
-        strcpy(statusMessage,"Input and output file are the same...");
+    if(!strcmp(st->guiSt.inputFilePath,st->guiSt.outputFilePath)) {
+        strcpy(st->guiSt.statusMessage,"Input and output file are the same...");
         error = TRUE;
     }
         
-    nFactor = gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(nFactorTextBox));
-    rFactor = gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(rFactorTextBox));
-    pFactor = gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(pFactorTextBox));
+    st->cryptSt.nFactor = gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(st->guiSt.nFactorTextBox));
+    st->cryptSt.rFactor = gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(st->guiSt.rFactorTextBox));
+    st->cryptSt.pFactor = gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON(st->guiSt.pFactorTextBox));
     
-    keyBufSize = atol(keySizeComboBoxText) * sizeof(uint8_t) * getBufSizeMultiple((char *)keySizeComboBoxText);
-    yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
+    st->cryptSt.keyBufSize = atol(st->guiSt.keySizeComboBoxText) * sizeof(uint8_t) * getBufSizeMultiple((char *)st->guiSt.keySizeComboBoxText);
+    st->cryptSt.yaxaSaltSize = st->cryptSt.keyBufSize / YAXA_KEY_CHUNK_SIZE;
 
-    genHmacBufSize = atol(macBufSizeComboBoxText) * sizeof(uint8_t) * getBufSizeMultiple((char *)macBufSizeComboBoxText);
-    makeMultipleOf(&genHmacBufSize,sizeof(cryptint_t));
+    st->cryptSt.genHmacBufSize = atol(st->guiSt.macBufSizeComboBoxText) * sizeof(uint8_t) * getBufSizeMultiple((char *)st->guiSt.macBufSizeComboBoxText);
+    makeMultipleOf(&st->cryptSt.genHmacBufSize,sizeof(cryptint_t));
     
-    msgBufSize = atol(msgBufSizeComboBoxText) * sizeof(uint8_t) * getBufSizeMultiple((char *)msgBufSizeComboBoxText);
-    makeMultipleOf(&msgBufSize,sizeof(cryptint_t));
+    st->cryptSt.msgBufSize = atol(st->guiSt.msgBufSizeComboBoxText) * sizeof(uint8_t) * getBufSizeMultiple((char *)st->guiSt.msgBufSizeComboBoxText);
+    makeMultipleOf(&st->cryptSt.msgBufSize,sizeof(cryptint_t));
     
-    if(strlen(passWord)) {
-        optSt.passWordGiven = true;
+    if(strlen(st->guiSt.passWord)) {
+        st->optSt.passWordGiven = true;
     } else {
-        optSt.passWordGiven = false;
+        st->optSt.passWordGiven = false;
     }
     
-    if(strlen(keyFilePath)) {
-        optSt.keyFileGiven = true;
-        strcpy(keyFileName,keyFilePath);
-        keyFileSize = getFileSize(keyFileName);
-        keyBufSize = keyFileSize;
-        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
+    if(strlen(st->guiSt.keyFilePath)) {
+        st->optSt.keyFileGiven = true;
+        strcpy(st->fileNameSt.keyFileName,st->guiSt.keyFilePath);
+        st->cryptSt.keyFileSize = getFileSize(st->fileNameSt.keyFileName);
+        st->cryptSt.keyBufSize = st->cryptSt.keyFileSize;
+        st->cryptSt.yaxaSaltSize = st->cryptSt.keyBufSize / YAXA_KEY_CHUNK_SIZE;
     } else {
-        optSt.keyFileGiven = false;
+        st->optSt.keyFileGiven = false;
     }
     
-    if(strlen(otpFilePath)) {
-        optSt.oneTimePad = true;
-        yaxaSaltSize = 0;
-        strcpy(otpInFileName,otpFilePath);
-        snprintf(otpOutFileName, NAME_MAX, "%s", otpFilePath);
-        sprintf(otpOutFileName,"%s.pad", outputFilePath);
+    if(strlen(st->guiSt.otpFilePath)) {
+        st->optSt.oneTimePad = true;
+        st->cryptSt.yaxaSaltSize = 0;
+        strcpy(st->fileNameSt.otpInFileName,st->guiSt.otpFilePath);
+        snprintf(st->fileNameSt.otpOutFileName, NAME_MAX, "%s", st->guiSt.otpFilePath);
+        sprintf(st->fileNameSt.otpOutFileName,"%s.pad", st->guiSt.outputFilePath);
     } else {
-        optSt.oneTimePad = false;
+        st->optSt.oneTimePad = false;
     }
     
-    if((optSt.passWordGiven && optSt.keyFileGiven) || (optSt.passWordGiven && optSt.oneTimePad)) {
-        yaxaSaltSize = keyBufSize / YAXA_KEY_CHUNK_SIZE;
-    } else if (optSt.oneTimePad || optSt.keyFileGiven) {
-        yaxaSaltSize = 0;
+    if((st->optSt.passWordGiven && st->optSt.keyFileGiven) || (st->optSt.passWordGiven && st->optSt.oneTimePad)) {
+        st->cryptSt.yaxaSaltSize = st->cryptSt.keyBufSize / YAXA_KEY_CHUNK_SIZE;
+    } else if (st->optSt.oneTimePad || st->optSt.keyFileGiven) {
+        st->cryptSt.yaxaSaltSize = 0;
     }
     
-    if(!optSt.passWordGiven && !optSt.keyFileGiven && !optSt.oneTimePad) {
-        strcpy(statusMessage,"Need at least password, keyfile or one-time-pad");
+    if(!st->optSt.passWordGiven && !st->optSt.keyFileGiven && !st->optSt.oneTimePad) {
+        strcpy(st->guiSt.statusMessage,"Need at least password, keyfile or one-time-pad");
         error = TRUE;
     }
     
-    if(strcmp(encryptOrDecrypt,"encrypt") == 0) {
-        if(optSt.passWordGiven) {
-            verificationPass = gtk_entry_get_text (GTK_ENTRY (passwordVerificationBox));
-            if(strcmp(passWord,verificationPass) == 0)
+    if(strcmp(st->guiSt.encryptOrDecrypt,"encrypt") == 0) {
+        if(st->optSt.passWordGiven) {
+            st->guiSt.verificationPass = gtk_entry_get_text (GTK_ENTRY (st->guiSt.passwordVerificationBox));
+            if(strcmp(st->guiSt.passWord,st->guiSt.verificationPass) == 0)
                 passwordsMatch = TRUE;
             
             if (passwordsMatch == FALSE) {
-                strcpy(statusMessage,"Passwords didn't match");
+                strcpy(st->guiSt.statusMessage,"Passwords didn't match");
                 error = TRUE;
             } else if(passwordsMatch == TRUE) {
-                snprintf(userPass,MAX_PASS_SIZE,"%s",passWord);
+                snprintf(st->cryptSt.userPass,MAX_PASS_SIZE,"%s",st->guiSt.passWord);
             
-                gtk_entry_set_text(GTK_ENTRY (passwordBox), "");
-                OPENSSL_cleanse((void *)passWord, strlen(passWord));
-                gtk_entry_set_text(GTK_ENTRY (passwordBox), passWord);
+                gtk_entry_set_text(GTK_ENTRY (st->guiSt.passwordBox), "");
+                OPENSSL_cleanse((void *)st->guiSt.passWord, strlen(st->guiSt.passWord));
+                gtk_entry_set_text(GTK_ENTRY (st->guiSt.passwordBox), st->guiSt.passWord);
                 
-                gtk_entry_set_text(GTK_ENTRY (passwordVerificationBox), "");
-                OPENSSL_cleanse((void *)verificationPass, strlen(verificationPass));
-                gtk_entry_set_text(GTK_ENTRY (passwordVerificationBox), verificationPass);
+                gtk_entry_set_text(GTK_ENTRY (st->guiSt.passwordVerificationBox), "");
+                OPENSSL_cleanse((void *)st->guiSt.verificationPass, strlen(st->guiSt.verificationPass));
+                gtk_entry_set_text(GTK_ENTRY (st->guiSt.passwordVerificationBox), st->guiSt.verificationPass);
             }
         }
-    } else if (strcmp(encryptOrDecrypt,"decrypt") == 0) {
-        snprintf(userPass,MAX_PASS_SIZE,"%s",passWord);
+    } else if (strcmp(st->guiSt.encryptOrDecrypt,"decrypt") == 0) {
+        snprintf(st->cryptSt.userPass,MAX_PASS_SIZE,"%s",st->guiSt.passWord);
     
-        gtk_entry_set_text(GTK_ENTRY (passwordBox), "");
-        OPENSSL_cleanse((void *)passWord, strlen(passWord));
-        gtk_entry_set_text(GTK_ENTRY (passwordBox), passWord);
+        gtk_entry_set_text(GTK_ENTRY (st->guiSt.passwordBox), "");
+        OPENSSL_cleanse((void *)st->guiSt.passWord, strlen(st->guiSt.passWord));
+        gtk_entry_set_text(GTK_ENTRY (st->guiSt.passwordBox), st->guiSt.passWord);
         
-        if(strlen(verificationPass)) {
-            gtk_entry_set_text(GTK_ENTRY (passwordVerificationBox), "");
-            OPENSSL_cleanse((void *)verificationPass, strlen(verificationPass));
-            gtk_entry_set_text(GTK_ENTRY (passwordVerificationBox), verificationPass);
+        if(strlen(st->guiSt.verificationPass)) {
+            gtk_entry_set_text(GTK_ENTRY (st->guiSt.passwordVerificationBox), "");
+            OPENSSL_cleanse((void *)st->guiSt.verificationPass, strlen(st->guiSt.verificationPass));
+            gtk_entry_set_text(GTK_ENTRY (st->guiSt.passwordVerificationBox), st->guiSt.verificationPass);
         }
     }
     
-    if(optSt.keyFileGiven && optSt.oneTimePad) {
-        strcpy(statusMessage,"Can only use keyfile OR one-time-pad");
+    if(st->optSt.keyFileGiven && st->optSt.oneTimePad) {
+        strcpy(st->guiSt.statusMessage,"Can only use keyfile OR one-time-pad");
         error = TRUE;
     }
     
     if(error != TRUE) {
-        if(strcmp(encryptOrDecrypt,"encrypt") == 0) {
-            strcpy(statusMessage,"Starting encryption...");
-            workThread('e',optSt);
-        } else if (strcmp(encryptOrDecrypt,"decrypt") == 0) {
-            strcpy(statusMessage,"Starting decryption...");
-            workThread('d',optSt);
+        if(strcmp(st->guiSt.encryptOrDecrypt,"encrypt") == 0) {
+            strcpy(st->guiSt.statusMessage,"Starting encryption...");
+            workThread('e',st);
+        } else if (strcmp(st->guiSt.encryptOrDecrypt,"decrypt") == 0) {
+            strcpy(st->guiSt.statusMessage,"Starting decryption...");
+            workThread('d',st);
         }
     }
     
-    OPENSSL_cleanse((void *)userPass, strlen(userPass));
+    OPENSSL_cleanse((void *)st->cryptSt.userPass, strlen(st->cryptSt.userPass));
 }
 
 static void inputFileSelect (GtkWidget *wid, gpointer ptr)
 {
+    struct dataStruct *st = (struct dataStruct *)ptr;
     GtkWidget *dialog;
     GtkFileChooserAction action = GTK_FILE_CHOOSER_ACTION_OPEN;
     gint res;
     char *fileName;
     
     dialog = gtk_file_chooser_dialog_new ("Open File",
-                                          GTK_WINDOW (ptr),
+                                          GTK_WINDOW (st->guiSt.win),
                                           action,
                                           "Cancel",
                                           GTK_RESPONSE_CANCEL,
@@ -537,7 +554,7 @@ static void inputFileSelect (GtkWidget *wid, gpointer ptr)
       {
         GtkFileChooser *chooser = GTK_FILE_CHOOSER (dialog);
         fileName = gtk_file_chooser_get_filename (chooser);
-        gtk_entry_set_text(GTK_ENTRY (inputFileNameBox), fileName);
+        gtk_entry_set_text(GTK_ENTRY (st->guiSt.inputFileNameBox), fileName);
       }
     
     gtk_widget_destroy (dialog);
@@ -545,13 +562,14 @@ static void inputFileSelect (GtkWidget *wid, gpointer ptr)
 
 static void outputFileSelect (GtkWidget *wid, gpointer ptr)
 {
+    struct dataStruct *st = (struct dataStruct *)ptr;
     GtkWidget *dialog;
     GtkFileChooserAction action = GTK_FILE_CHOOSER_ACTION_SAVE;
     gint res;
     char *fileName;
     
     dialog = gtk_file_chooser_dialog_new ("Save File",
-                                          GTK_WINDOW (ptr),
+                                          GTK_WINDOW (st->guiSt.win),
                                           action,
                                           "Cancel",
                                           GTK_RESPONSE_CANCEL,
@@ -564,7 +582,7 @@ static void outputFileSelect (GtkWidget *wid, gpointer ptr)
       {
         GtkFileChooser *chooser = GTK_FILE_CHOOSER (dialog);
         fileName = gtk_file_chooser_get_filename (chooser);
-        gtk_entry_set_text(GTK_ENTRY (outputFileNameBox), fileName);
+        gtk_entry_set_text(GTK_ENTRY (st->guiSt.outputFileNameBox), fileName);
       }
     
     gtk_widget_destroy (dialog);
@@ -572,13 +590,14 @@ static void outputFileSelect (GtkWidget *wid, gpointer ptr)
 
 static void keyFileSelect (GtkWidget *wid, gpointer ptr)
 {
+    struct dataStruct *st = (struct dataStruct *)ptr;
     GtkWidget *dialog;
     GtkFileChooserAction action = GTK_FILE_CHOOSER_ACTION_OPEN;
     gint res;
     char *fileName;
     
     dialog = gtk_file_chooser_dialog_new ("Open File",
-                                          GTK_WINDOW (ptr),
+                                          GTK_WINDOW (st->guiSt.win),
                                           action,
                                           "Cancel",
                                           GTK_RESPONSE_CANCEL,
@@ -591,7 +610,7 @@ static void keyFileSelect (GtkWidget *wid, gpointer ptr)
       {
         GtkFileChooser *chooser = GTK_FILE_CHOOSER (dialog);
         fileName = gtk_file_chooser_get_filename (chooser);
-        gtk_entry_set_text(GTK_ENTRY (keyFileNameBox), fileName);
+        gtk_entry_set_text(GTK_ENTRY (st->guiSt.keyFileNameBox), fileName);
       }
     
     gtk_widget_destroy (dialog);
@@ -599,13 +618,14 @@ static void keyFileSelect (GtkWidget *wid, gpointer ptr)
 
 static void otpFileSelect (GtkWidget *wid, gpointer ptr)
 {
+    struct dataStruct *st = (struct dataStruct *)ptr;
     GtkWidget *dialog;
     GtkFileChooserAction action = GTK_FILE_CHOOSER_ACTION_OPEN;
     gint res;
     char *fileName;
     
     dialog = gtk_file_chooser_dialog_new ("Open File",
-                                          GTK_WINDOW (ptr),
+                                          GTK_WINDOW (st->guiSt.win),
                                           action,
                                           "Cancel",
                                           GTK_RESPONSE_CANCEL,
@@ -618,7 +638,7 @@ static void otpFileSelect (GtkWidget *wid, gpointer ptr)
       {
         GtkFileChooser *chooser = GTK_FILE_CHOOSER (dialog);
         fileName = gtk_file_chooser_get_filename (chooser);
-        gtk_entry_set_text(GTK_ENTRY (otpFileNameBox), fileName);
+        gtk_entry_set_text(GTK_ENTRY (st->guiSt.otpFileNameBox), fileName);
       }
     
     gtk_widget_destroy (dialog);
@@ -626,35 +646,79 @@ static void otpFileSelect (GtkWidget *wid, gpointer ptr)
 
 void passVisibilityToggle (GtkWidget *wid, gpointer ptr)
 {
-    gtk_entry_set_visibility(GTK_ENTRY (passwordBox), gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (wid)));
-    gtk_entry_set_visibility(GTK_ENTRY (passwordVerificationBox), gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (wid)));
+    struct dataStruct *st = (struct dataStruct *)ptr;
+    gtk_entry_set_visibility(GTK_ENTRY (st->guiSt.passwordBox), gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (wid)));
+    gtk_entry_set_visibility(GTK_ENTRY (st->guiSt.passwordVerificationBox), gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (wid)));
 }
 
-void otpFileEntryDisable (void)
+void keyFileEntryDisableFromInsert (GtkEditable* self,
+  gchar* new_text,
+  gint new_text_length,
+  gint* position,
+  gpointer user_data)
 {
-    gtk_editable_set_editable(GTK_EDITABLE(otpFileNameBox), FALSE);
-    gtk_widget_set_sensitive (GTK_WIDGET(otpFileButton), FALSE);
-
+    struct dataStruct *st = (struct dataStruct *)user_data;
+    gtk_editable_set_editable(GTK_EDITABLE(st->guiSt.keyFileNameBox), FALSE);
+    gtk_widget_set_sensitive (GTK_WIDGET(st->guiSt.keyFileButton), FALSE);
 }
 
-void keyFileEntryDisable (void)
+void keyFileEntryEnableFromDelete (GtkEditable* self,
+  gint start_pos,
+  gint end_pos,
+  gpointer user_data)
 {
-    gtk_editable_set_editable(GTK_EDITABLE(keyFileNameBox), FALSE);
-    gtk_widget_set_sensitive (GTK_WIDGET(keyFileButton), FALSE);
-
+    struct dataStruct *st = (struct dataStruct *)user_data;
+    gtk_editable_set_editable(GTK_EDITABLE(st->guiSt.keyFileNameBox), TRUE);
+    gtk_widget_set_sensitive (GTK_WIDGET(st->guiSt.keyFileButton), TRUE);
 }
 
-void otpFileEntryEnable (void)
+void otpFileEntryEnable (GtkWidget *wid, gpointer ptr)
 {
-    gtk_editable_set_editable(GTK_EDITABLE(otpFileNameBox), TRUE);
-    gtk_widget_set_sensitive (GTK_WIDGET(otpFileButton), TRUE);
+    struct dataStruct *st = (struct dataStruct *)ptr;
+    gtk_editable_set_editable(GTK_EDITABLE(st->guiSt.otpFileNameBox), TRUE);
+    gtk_widget_set_sensitive (GTK_WIDGET(st->guiSt.otpFileButton), TRUE);
 
 }
 
-void keyFileEntryEnable (void)
+void keyFileEntryDisableButtonFromClick (GtkWidget *wid, gpointer ptr)
 {
-    gtk_editable_set_editable(GTK_EDITABLE(keyFileNameBox), TRUE);
-    gtk_widget_set_sensitive (GTK_WIDGET(keyFileButton), TRUE);
-
+    struct dataStruct *st = (struct dataStruct *)ptr;
+    gtk_editable_set_editable(GTK_EDITABLE(st->guiSt.keyFileNameBox), FALSE);
+    gtk_widget_set_sensitive (GTK_WIDGET(st->guiSt.keyFileButton), FALSE);
 }
 
+void otpFileEntryDisableFromInsert (GtkEditable* self,
+  gchar* new_text,
+  gint new_text_length,
+  gint* position,
+  gpointer user_data)
+{
+    struct dataStruct *st = (struct dataStruct *)user_data;
+    gtk_editable_set_editable(GTK_EDITABLE(st->guiSt.otpFileNameBox), FALSE);
+    gtk_widget_set_sensitive (GTK_WIDGET(st->guiSt.otpFileButton), FALSE);
+}
+
+void otpFileEntryEnableFromDelete (GtkEditable* self,
+  gint start_pos,
+  gint end_pos,
+  gpointer user_data)
+{
+    struct dataStruct *st = (struct dataStruct *)user_data;
+    gtk_editable_set_editable(GTK_EDITABLE(st->guiSt.otpFileNameBox), TRUE);
+    gtk_widget_set_sensitive (GTK_WIDGET(st->guiSt.otpFileButton), TRUE);
+}
+
+void otpFileEntryDisableButtonFromClick (GtkWidget *wid, gpointer ptr)
+{
+    struct dataStruct *st = (struct dataStruct *)ptr;
+    gtk_editable_set_editable(GTK_EDITABLE(st->guiSt.otpFileNameBox), FALSE);
+    gtk_widget_set_sensitive (GTK_WIDGET(st->guiSt.otpFileButton), FALSE);
+}
+
+void keyFileEntryEnable (GtkWidget *wid, gpointer ptr)
+{
+    struct dataStruct *st = (struct dataStruct *)ptr;
+    gtk_editable_set_editable(GTK_EDITABLE(st->guiSt.keyFileNameBox), TRUE);
+    gtk_widget_set_sensitive (GTK_WIDGET(st->guiSt.keyFileButton), TRUE);
+
+}

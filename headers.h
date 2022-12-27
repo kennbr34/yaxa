@@ -22,6 +22,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <time.h>
 
 
 /*Define the size of the integer to be used in XOR operations*/
@@ -41,7 +42,7 @@ typedef unsigned __int128 cryptint_t;
 #include "globals.h"
 
 /*Structure definitions*/
-//#include "structs.h"
+#include "structs.h"
 
 /*Function prototypes*/
 #include "prototypes.h"

@@ -1,45 +1,45 @@
-void allocateBuffers()
+void allocateBuffers(struct dataStruct *st)
 {
-    yaxaKey = calloc(keyBufSize, sizeof(*yaxaKey));
-    if (yaxaKey == NULL) {
+    st->cryptSt.yaxaKey = calloc(st->cryptSt.keyBufSize, sizeof(*st->cryptSt.yaxaKey));
+    if (st->cryptSt.yaxaKey == NULL) {
         printSysError(errno);
         printError("Could not allocate yaxaKey buffer");
         exit(EXIT_FAILURE);
     }
 
-    yaxaKeyChunk = calloc(YAXA_KEY_CHUNK_SIZE, sizeof(*yaxaKeyChunk));
-    if (yaxaKeyChunk == NULL) {
+    st->cryptSt.yaxaKeyChunk = calloc(YAXA_KEY_CHUNK_SIZE, sizeof(*st->cryptSt.yaxaKeyChunk));
+    if (st->cryptSt.yaxaKeyChunk == NULL) {
         printSysError(errno);
         printError("Could not allocate yaxaKeyChunk buffer");
         exit(EXIT_FAILURE);
     }
 
-    yaxaSalt = calloc(yaxaSaltSize, sizeof(*yaxaSalt));
-    if (yaxaSalt == NULL) {
+    st->cryptSt.yaxaSalt = calloc(st->cryptSt.yaxaSaltSize, sizeof(*st->cryptSt.yaxaSalt));
+    if (st->cryptSt.yaxaSalt == NULL) {
         printSysError(errno);
         printError("Could not allocate yaxaSalt buffer");
         exit(EXIT_FAILURE);
     }
 
-    hmacKey = calloc(HMAC_KEY_SIZE, sizeof(*hmacKey));
-    if (hmacKey == NULL) {
+    st->cryptSt.hmacKey = calloc(HMAC_KEY_SIZE, sizeof(*st->cryptSt.hmacKey));
+    if (st->cryptSt.hmacKey == NULL) {
         printSysError(errno);
         printError("Could not allocate hmacKey buffer");
         exit(EXIT_FAILURE);
     }
 }
 
-void cleanUpBuffers()
+void cleanUpBuffers(struct dataStruct *st)
 {
-    OPENSSL_cleanse(yaxaKey, keyBufSize);
-    free(yaxaKey);
-    OPENSSL_cleanse(hmacKey, HMAC_KEY_SIZE);
-    free(hmacKey);
-    OPENSSL_cleanse(yaxaKeyChunk, YAXA_KEY_CHUNK_SIZE);
-    free(yaxaKeyChunk);
+    OPENSSL_cleanse(st->cryptSt.yaxaKey, st->cryptSt.keyBufSize);
+    free(st->cryptSt.yaxaKey);
+    OPENSSL_cleanse(st->cryptSt.hmacKey, HMAC_KEY_SIZE);
+    free(st->cryptSt.hmacKey);
+    OPENSSL_cleanse(st->cryptSt.yaxaKeyChunk, YAXA_KEY_CHUNK_SIZE);
+    free(st->cryptSt.yaxaKeyChunk);
     
-    OPENSSL_cleanse(userPass, strlen(userPass));
-    OPENSSL_cleanse(userPassToVerify, strlen(userPassToVerify));
+    OPENSSL_cleanse(st->cryptSt.userPass, strlen(st->cryptSt.userPass));
+    OPENSSL_cleanse(st->cryptSt.userPassToVerify, strlen(st->cryptSt.userPassToVerify));
 
-    free(yaxaSalt);
+    free(st->cryptSt.yaxaSalt);
 }
