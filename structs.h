@@ -105,6 +105,15 @@ struct guiStruct {
     double *overallProgressFraction;
     
     GtkWidget *progressBar;
+    
+    clock_t startTime, endTime;
+    double totalTime;
+    uint64_t startBytes, endBytes, totalBytes;
+    
+    clock_t startLoop, endLoop;
+    double loopTime;
+    
+    double loopRate, averageRate;
 
 };
 #endif

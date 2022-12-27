@@ -22,6 +22,10 @@ int workThread(char action, struct dataStruct *st)
     st->cryptSt.counterInt = 0;
     st->cryptSt.keyInt = 0;
     st->cryptSt.k = 0;
+    
+    #ifdef gui
+    st->guiSt.startTime = clock();
+    #endif
 
     if(action == 'e') {
         #ifdef gui
@@ -278,10 +282,10 @@ int workThread(char action, struct dataStruct *st)
     
     #ifdef gui
     if(action == 'e') {
-        strcpy(st->guiSt.statusMessage,"File encrypted");
+        sprintf(st->guiSt.statusMessage,"File encrypted... %0.2fs elapsed,%0.2f MB/s", st->guiSt.totalTime, st->guiSt.averageRate);
         *(st->guiSt.overallProgressFraction) = 1;
     } else if (action == 'd') {
-        strcpy(st->guiSt.statusMessage,"File decrypted");
+        sprintf(st->guiSt.statusMessage,"File decrypted... %0.2fs elapsed,%0.2f MB/s", st->guiSt.totalTime, st->guiSt.averageRate);
         *(st->guiSt.overallProgressFraction) = 1;
     }
     #endif

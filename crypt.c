@@ -1,6 +1,5 @@
 void doCrypt(FILE *inFile, FILE *outFile, cryptint_t fileSize, FILE *otpInFile, FILE *otpOutFile, struct dataStruct *st)
 {
-    
     #ifdef gui
     *(st->guiSt.progressFraction) = 0.0;
     #endif
@@ -33,7 +32,13 @@ void doCrypt(FILE *inFile, FILE *outFile, cryptint_t fileSize, FILE *otpInFile, 
     cryptint_t outInt, inInt;
 
     cryptint_t i;
+    uint64_t loopIterations = 0;
     for (i = 0; remainingBytes; i += st->cryptSt.msgBufSize) {
+        
+        #ifdef gui
+        st->guiSt.startLoop = clock();
+        st->guiSt.startBytes = (fileSize - remainingBytes);
+        #endif
         
         if(st->cryptSt.msgBufSize > remainingBytes) {
             st->cryptSt.msgBufSize = remainingBytes;
@@ -75,11 +80,27 @@ void doCrypt(FILE *inFile, FILE *outFile, cryptint_t fileSize, FILE *otpInFile, 
             }
         }
         
+        remainingBytes -= st->cryptSt.msgBufSize;
+        
         #ifdef gui
         *(st->guiSt.progressFraction) = (double)i / (double)fileSize;
+        
+        st->guiSt.endLoop = clock();
+        st->guiSt.endBytes = (fileSize - remainingBytes);
+        
+        st->guiSt.loopTime = (double)(st->guiSt.endLoop - st->guiSt.startLoop) / CLOCKS_PER_SEC;
+        st->guiSt.totalTime = (double)(st->guiSt.endLoop - st->guiSt.startTime) / CLOCKS_PER_SEC;
+        st->guiSt.totalBytes = st->guiSt.endBytes - st->guiSt.startBytes;
+        
+        double dataRate = (double)((double)st->guiSt.totalBytes/(double)st->guiSt.loopTime) / (1024*1024);
+        sprintf(st->guiSt.statusMessage,"%s %0.0f Mb/s, %0.0fs elapsed", strcmp(st->guiSt.encryptOrDecrypt,"encrypt") ? "Decrypting..." : "Encrypting...", dataRate, st->guiSt.totalTime);
+        st->guiSt.averageRate += dataRate;
         #endif
-        remainingBytes -= st->cryptSt.msgBufSize;
+        loopIterations++;
     }
+    #ifdef gui
+    st->guiSt.averageRate /= loopIterations;
+    #endif 
     
     i += st->cryptSt.yaxaSaltSize + PASS_KEYED_HASH_SIZE;
     HMAC_Final(ctx, st->cryptSt.generatedMAC, (unsigned int *)&i);
@@ -111,6 +132,11 @@ void genHMAC(FILE *dataFile, cryptint_t fileSize, struct dataStruct *st)
     cryptint_t i; /*Declare i outside of for loop so it can be used in HMAC_Final as the size*/
     for (i = 0; remainingBytes; i += st->cryptSt.genHmacBufSize) {
         
+        #ifdef gui
+        st->guiSt.startLoop = clock();
+        st->guiSt.startBytes = (fileSize - remainingBytes);
+        #endif
+        
         if(st->cryptSt.genHmacBufSize > remainingBytes) {
             st->cryptSt.genHmacBufSize = remainingBytes;
         }
@@ -125,6 +151,16 @@ void genHMAC(FILE *dataFile, cryptint_t fileSize, struct dataStruct *st)
         remainingBytes -= st->cryptSt.genHmacBufSize;
         #ifdef gui
         *(st->guiSt.progressFraction) = (double)i/(double)fileSize;
+        
+        st->guiSt.endLoop = clock();
+        st->guiSt.endBytes = (fileSize - remainingBytes);
+        
+        st->guiSt.loopTime = (double)(st->guiSt.endLoop - st->guiSt.startLoop) / CLOCKS_PER_SEC;
+        st->guiSt.totalTime = (double)(st->guiSt.endLoop - st->guiSt.startTime) / CLOCKS_PER_SEC;
+        st->guiSt.totalBytes = st->guiSt.endBytes - st->guiSt.startBytes;
+        
+        double dataRate = (double)((double)st->guiSt.totalBytes/(double)st->guiSt.loopTime) / (1024*1024);
+        sprintf(st->guiSt.statusMessage,"%s %0.0f Mb/s, %0.0fs elapsed", "Authenticating data...", dataRate, st->guiSt.totalTime);
         #endif
     }
     HMAC_Final(ctx, st->cryptSt.generatedMAC, (unsigned int *)&i);
