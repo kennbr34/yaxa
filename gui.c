@@ -7,6 +7,7 @@
 #include "misc.c"
 #include "buffers.c"
 #include "workthread.c"
+#include "parseoptions.c"
 
 void on_cryptButton_clicked(GtkWidget *wid, gpointer ptr);
 void choseEncrypt(GtkWidget *wid, gpointer ptr);
@@ -44,6 +45,9 @@ static gboolean updateOverallProgress(gpointer user_data);
 
 int main(int argc, char *argv[])
 {
+    /*Catch SIGCONT to kill GUI if -q was used for testing*/
+    signal(SIGCONT,signalHandler);
+    
     static struct dataStruct st = {0};
     
     //struct dataStruct *st = g_new0(struct dataStruct, 1);
@@ -62,6 +66,11 @@ int main(int argc, char *argv[])
     st.guiSt.statusMessage = mmap(NULL, 256, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
     st.guiSt.progressFraction = mmap(NULL, sizeof(double), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
     st.guiSt.overallProgressFraction = mmap(NULL, sizeof(double), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+    st.guiSt.workThreadDone = mmap(NULL, sizeof(bool), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+    
+    if(argc > 1) {
+        parseOptions(argc, argv, &st);
+    }
 
     allocateBuffers(&st);
 
@@ -302,6 +311,62 @@ int main(int argc, char *argv[])
     strcpy(st.guiSt.statusMessage,"Ready");
     g_timeout_add (50, updateStatus, (gpointer)&st);
     
+    if(st.optSt.inputFileGiven) {
+        gtk_entry_set_text ( GTK_ENTRY(st.guiSt.inputFileNameBox), (const gchar*) st.fileNameSt.inputFileName);
+    }
+    
+    if(st.optSt.outputFileGiven) {
+        gtk_entry_set_text ( GTK_ENTRY(st.guiSt.outputFileNameBox), (const gchar*) st.fileNameSt.outputFileName);
+    }
+    
+    if(st.optSt.keyFileGiven) {
+        gtk_entry_set_text ( GTK_ENTRY(st.guiSt.keyFileNameBox), (const gchar*) st.fileNameSt.keyFileName);
+    }
+    
+    if(st.optSt.oneTimePad) {
+        gtk_entry_set_text ( GTK_ENTRY(st.guiSt.otpFileNameBox), (const gchar*) st.fileNameSt.otpInFileName);
+    }
+    
+    if(st.optSt.passWordGiven) {
+        gtk_entry_set_text ( GTK_ENTRY(st.guiSt.passwordBox), (const gchar*) st.cryptSt.userPass);
+        if(st.optSt.encrypt) {
+            gtk_entry_set_text ( GTK_ENTRY(st.guiSt.passwordVerificationBox) , (const gchar*) st.cryptSt.userPass);
+        }
+    }
+    
+    if(st.optSt.nFactorGiven) {
+        gtk_adjustment_set_value ( GTK_ADJUSTMENT (nFactorSpinButtonAdj), (gdouble)st.cryptSt.nFactor);
+    }
+    
+    if(st.optSt.rFactorGiven) {
+        gtk_adjustment_set_value ( GTK_ADJUSTMENT (rFactorSpinButtonAdj), (gdouble)st.cryptSt.rFactor);
+    }
+    
+    if(st.optSt.pFactorGiven) {
+        gtk_adjustment_set_value ( GTK_ADJUSTMENT (pFactorSpinButtonAdj), (gdouble)st.cryptSt.pFactor);
+    }
+    
+    if(st.optSt.keyBufSizeGiven) {
+        char size_string[13];
+        sprintf(size_string,"%lub", st.cryptSt.keyBufSize);
+        gtk_combo_box_text_prepend ( GTK_COMBO_BOX_TEXT (st.guiSt.keySizeComboBox), 0, (const gchar*) size_string);
+        gtk_combo_box_set_active (GTK_COMBO_BOX (st.guiSt.keySizeComboBox), 0);
+    }
+    
+    if(st.optSt.macBufSizeGiven) {
+        char size_string[13];
+        sprintf(size_string,"%lub", st.cryptSt.genHmacBufSize);
+        gtk_combo_box_text_prepend ( GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), 0, (const gchar*) size_string);
+        gtk_combo_box_set_active (GTK_COMBO_BOX (st.guiSt.macBufSizeComboBox), 0);
+    }
+    
+    if(st.optSt.msgBufSizeGiven) {
+        char size_string[13];
+        sprintf(size_string,"%lub", st.cryptSt.msgBufSize);
+        gtk_combo_box_text_prepend ( GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), 0, (const gchar*) size_string);
+        gtk_combo_box_set_active (GTK_COMBO_BOX (st.guiSt.msgBufSizeComboBox), 0);
+    }
+    
     GtkWidget *grid = gtk_grid_new();
     gtk_widget_set_hexpand (inputFileLabel, TRUE);
     gtk_grid_attach (GTK_GRID (grid), inputFileLabel, 0, 0, 1, 1);
@@ -346,6 +411,17 @@ int main(int argc, char *argv[])
     g_signal_connect (st.guiSt.win, "delete_event", G_CALLBACK (gtk_main_quit), NULL);
     
     gtk_widget_show_all (st.guiSt.win);
+    
+    if(argc > 1) {
+        if(st.optSt.encrypt) {
+            strcpy(st.guiSt.encryptOrDecrypt,"encrypt");
+            on_cryptButton_clicked(NULL,&st);
+        } else if(st.optSt.decrypt) {
+            strcpy(st.guiSt.encryptOrDecrypt,"decrypt");
+            on_cryptButton_clicked(NULL,&st);
+        }
+    }
+    
     gtk_main ();
     
     cleanUpBuffers(&st);

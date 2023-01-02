@@ -55,6 +55,10 @@ struct optionsStruct {
     bool macBufSizeGiven;
     bool msgBufSizeGiven;
     bool gotPassFromCmdLine;
+    bool nFactorGiven;
+    bool rFactorGiven;
+    bool pFactorGiven;
+    bool quitWhenDone;
 };
 
 struct miscStruct {
@@ -114,6 +118,8 @@ struct guiStruct {
     double loopTime;
     
     double loopRate, averageRate;
+    
+    bool *workThreadDone;
 
 };
 #endif

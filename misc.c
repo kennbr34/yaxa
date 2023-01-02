@@ -80,3 +80,6 @@ void makeMultipleOf(size_t *numberToChange, size_t multiple) {
         }
 }
 
+void signalHandler(int signum) {
+    exit(EXIT_SUCCESS);
+}

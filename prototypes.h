@@ -18,3 +18,4 @@ void signalHandler(int signum);                                          /*Signa
 cryptint_t yaxa(cryptint_t messageInt, uint8_t *otpBuffer, struct dataStruct *st);                    /*YAXA encryption/decryption function*/
 void makeMultipleOf(size_t *numberToChange, size_t multiple);
 int workThread(char action, struct dataStruct *st);
+void parseOptions(int argc, char *argv[], struct dataStruct *st);

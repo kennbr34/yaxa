@@ -2,7 +2,7 @@ int workThread(char action, struct dataStruct *st)
 {
     pid_t p = fork();
     if(p) return 0;
-            
+                
     FILE *inFile = fopen(st->fileNameSt.inputFileName, "rb");
     if (inFile == NULL) {
         printFileError(st->fileNameSt.inputFileName, errno);
@@ -289,6 +289,11 @@ int workThread(char action, struct dataStruct *st)
         *(st->guiSt.overallProgressFraction) = 1;
     }
     #endif
+    
+    /*Use SIGCONT so that calling process isn't terminated*/
+    if(st->optSt.quitWhenDone) {
+        kill(p,SIGCONT);
+    }
     
     exit(EXIT_SUCCESS);
     
