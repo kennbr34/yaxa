@@ -17,25 +17,11 @@ static void outputFileSelect (GtkWidget *wid, gpointer ptr);
 static void keyFileSelect (GtkWidget *wid, gpointer ptr);
 static void otpFileSelect (GtkWidget *wid, gpointer ptr);
 void passVisibilityToggle (GtkWidget *wid, gpointer ptr);
-void keyFileEntryDisableFromInsert (GtkEditable* self,
-gchar* new_text,
-  gint new_text_length,
-  gint* position,
-  gpointer user_data);
-void keyFileEntryEnableFromDelete (GtkEditable* self,
-  gint start_pos,
-  gint end_pos,
-  gpointer user_data);
+void keyFileEntryDisableFromInsert (GtkEditable* self, gchar* new_text, gint new_text_length, gint* position, gpointer user_data);
+void keyFileEntryEnableFromDelete (GtkEditable* self, gint start_pos, gint end_pos, gpointer user_data);
 void keyFileEntryDisableButtonFromClick (GtkWidget *wid, gpointer ptr);
-void otpFileEntryDisableFromInsert (GtkEditable* self,
-gchar* new_text,
-  gint new_text_length,
-  gint* position,
-  gpointer user_data);
-void otpFileEntryEnableFromDelete (GtkEditable* self,
-  gint start_pos,
-  gint end_pos,
-  gpointer user_data);
+void otpFileEntryDisableFromInsert (GtkEditable* self, gchar* new_text, gint new_text_length, gint* position, gpointer user_data);
+void otpFileEntryEnableFromDelete (GtkEditable* self, gint start_pos, gint end_pos, gpointer user_data);
 void otpFileEntryDisableButtonFromClick (GtkWidget *wid, gpointer ptr);
 void otpFileEntryEnable (GtkWidget *wid, gpointer ptr);
 void keyFileEntryEnable (GtkWidget *wid, gpointer ptr);
@@ -45,6 +31,9 @@ static gboolean updateOverallProgress(gpointer user_data);
 
 int main(int argc, char *argv[])
 {
+    
+    unsigned long long int number = 1;
+    
     /*Catch SIGCONT to kill GUI if -q was used for testing*/
     signal(SIGCONT,signalHandler);
     
@@ -66,7 +55,6 @@ int main(int argc, char *argv[])
     st.guiSt.statusMessage = mmap(NULL, 256, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
     st.guiSt.progressFraction = mmap(NULL, sizeof(double), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
     st.guiSt.overallProgressFraction = mmap(NULL, sizeof(double), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
-    st.guiSt.workThreadDone = mmap(NULL, sizeof(bool), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
     
     if(argc > 1) {
         parseOptions(argc, argv, &st);
@@ -148,33 +136,14 @@ int main(int argc, char *argv[])
     
     GtkWidget *keySizeLabel = gtk_label_new ("Key Size");
     st.guiSt.keySizeComboBox = gtk_combo_box_text_new ();
+    char keySizeComboBoxTextString[13] = {0};
     gtk_widget_set_tooltip_text (st.guiSt.keySizeComboBox, "This controls the size of the key that will be derived from the password");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.keySizeComboBox), "16 bytes");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.keySizeComboBox), "32 bytes");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.keySizeComboBox), "64 bytes");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.keySizeComboBox), "128 bytes");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.keySizeComboBox), "256 bytes");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.keySizeComboBox), "512 bytes");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.keySizeComboBox), "2 Kb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.keySizeComboBox), "4 Kb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.keySizeComboBox), "8 Kb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.keySizeComboBox), "16 Kb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.keySizeComboBox), "32 Kb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.keySizeComboBox), "64 Kb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.keySizeComboBox), "128 Kb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.keySizeComboBox), "256 Kb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.keySizeComboBox), "512 Kb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.keySizeComboBox), "1 Mb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.keySizeComboBox), "2 Mb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.keySizeComboBox), "4 Mb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.keySizeComboBox), "8 Mb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.keySizeComboBox), "16 Mb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.keySizeComboBox), "32 Mb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.keySizeComboBox), "64 Mb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.keySizeComboBox), "128 Mb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.keySizeComboBox), "256 Mb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.keySizeComboBox), "512 Mb");
-    gtk_combo_box_set_active (GTK_COMBO_BOX (st.guiSt.keySizeComboBox), 20);
+    for(int i = 0; i < 34; i++) {
+        bytesPrefixed(keySizeComboBoxTextString, number);
+        gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.keySizeComboBox), keySizeComboBoxTextString);
+        number = number << 1;
+    }
+    gtk_combo_box_set_active (GTK_COMBO_BOX (st.guiSt.keySizeComboBox), 25);
     
     GtkWidget *visibilityButton = gtk_check_button_new_with_label ("Show Password");
     gtk_widget_set_tooltip_text (visibilityButton, "Hint: Use this to avoid typos");
@@ -211,79 +180,25 @@ int main(int argc, char *argv[])
     GtkWidget *macBufSizeLabel = gtk_label_new ("Authentication Buffer Size");
     st.guiSt.macBufSizeComboBox = gtk_combo_box_text_new ();
     gtk_widget_set_tooltip_text (st.guiSt.macBufSizeComboBox, "This controls the size of the buffer used for authenticating data");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "1 byte");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "2 bytes");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "4 bytes");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "8 bytes");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "16 bytes");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "32 bytes");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "64 bytes");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "128 bytes");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "256 bytes");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "512 bytes");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "1 Kb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "2 Kb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "4 Kb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "8 Kb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "16 Kb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "32 Kb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "64 Kb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "128 Kb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "256 Kb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "512 Kb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "1 Mb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "2 Mb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "4 Mb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "8 Mb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "16 Mb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "32 Mb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "64 Mb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "128 Mb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "256 Mb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "512 Mb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "1 Gb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "2 Gb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "4 Gb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), "8 Gb");
+    char macBufSizeComboBoxTextString[13] = {0};
+    number = 1;
+    for(int i = 0; i < 34; i++) {
+        bytesPrefixed(macBufSizeComboBoxTextString, number);
+        gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), macBufSizeComboBoxTextString);
+        number = number << 1;
+    }
     gtk_combo_box_set_active (GTK_COMBO_BOX (st.guiSt.macBufSizeComboBox), 20);
     
     GtkWidget *msgBufSizeLabel = gtk_label_new ("File Buffer Size");
     st.guiSt.msgBufSizeComboBox = gtk_combo_box_text_new ();
     gtk_widget_set_tooltip_text (st.guiSt.msgBufSizeComboBox, "This controls the size of the buffer used for encryption/decryption data");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "1 byte");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "2 bytes");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "4 bytes");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "8 bytes");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "16 bytes");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "32 bytes");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "64 bytes");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "128 bytes");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "256 bytes");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "512 bytes");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "1 Kb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "2 Kb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "4 Kb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "8 Kb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "16 Kb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "32 Kb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "64 Kb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "128 Kb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "256 Kb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "512 Kb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "1 Mb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "2 Mb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "4 Mb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "8 Mb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "16 Mb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "32 Mb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "64 Mb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "128 Mb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "256 Mb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "512 Mb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "1 Gb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "2 Gb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "4 Gb");
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), "8 Gb");
+    char msgBufSizeComboBoxTextString[13] = {0};
+    number = 1;
+    for(int i = 0; i < 34; i++) {
+        bytesPrefixed(msgBufSizeComboBoxTextString, number);
+        gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), msgBufSizeComboBoxTextString);
+        number = number << 1;
+    }
     gtk_combo_box_set_active (GTK_COMBO_BOX (st.guiSt.msgBufSizeComboBox), 20);
     
     GtkWidget *encryptButton = gtk_button_new_with_label ("Encrypt");
@@ -348,21 +263,21 @@ int main(int argc, char *argv[])
     
     if(st.optSt.keyBufSizeGiven) {
         char size_string[13];
-        sprintf(size_string,"%lub", st.cryptSt.keyBufSize);
+        bytesPrefixed(size_string,st.cryptSt.keyBufSize);
         gtk_combo_box_text_prepend ( GTK_COMBO_BOX_TEXT (st.guiSt.keySizeComboBox), 0, (const gchar*) size_string);
         gtk_combo_box_set_active (GTK_COMBO_BOX (st.guiSt.keySizeComboBox), 0);
     }
     
     if(st.optSt.macBufSizeGiven) {
         char size_string[13];
-        sprintf(size_string,"%lub", st.cryptSt.genHmacBufSize);
+        bytesPrefixed(size_string,st.cryptSt.genHmacBufSize);
         gtk_combo_box_text_prepend ( GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), 0, (const gchar*) size_string);
         gtk_combo_box_set_active (GTK_COMBO_BOX (st.guiSt.macBufSizeComboBox), 0);
     }
     
     if(st.optSt.msgBufSizeGiven) {
         char size_string[13];
-        sprintf(size_string,"%lub", st.cryptSt.msgBufSize);
+        bytesPrefixed(size_string,st.cryptSt.msgBufSize);
         gtk_combo_box_text_prepend ( GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), 0, (const gchar*) size_string);
         gtk_combo_box_set_active (GTK_COMBO_BOX (st.guiSt.msgBufSizeComboBox), 0);
     }

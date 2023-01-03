@@ -83,3 +83,16 @@ void makeMultipleOf(size_t *numberToChange, size_t multiple) {
 void signalHandler(int signum) {
     exit(EXIT_SUCCESS);
 }
+
+void bytesPrefixed(char *prefixedString, unsigned long long bytes)
+{
+    if (bytes <= 1023) {
+        sprintf(prefixedString, "%llu bytes", bytes);
+    } else if (bytes >= 1024 && bytes < 1048576) {
+        sprintf(prefixedString, "%llu Kb", bytes / 1024);
+    } else if (bytes >= 1048576 && bytes < 1073741824) {
+        sprintf(prefixedString, "%llu Mb", bytes / 1048576);
+    } else if (bytes >= 1073741824) {
+        sprintf(prefixedString, "%llu Gb", bytes / 1073741824);
+    }
+}

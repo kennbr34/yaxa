@@ -118,9 +118,6 @@ struct guiStruct {
     double loopTime;
     
     double loopRate, averageRate;
-    
-    bool *workThreadDone;
-
 };
 #endif
 
