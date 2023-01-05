@@ -1,5 +1,10 @@
 void doCrypt(FILE *inFile, FILE *outFile, cryptint_t fileSize, FILE *otpInFile, FILE *otpOutFile, struct dataStruct *st)
 {
+    
+    if(fileSize < sizeof(cryptint_t)) {
+        printError("File size less than cryptint_t");
+        exit(EXIT_FAILURE);
+    }
     #ifdef gui
     *(st->guiSt.progressFraction) = 0.0;
     #endif

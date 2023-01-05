@@ -136,7 +136,7 @@ int main(int argc, char *argv[])
     
     GtkWidget *keySizeLabel = gtk_label_new ("Key Size");
     st.guiSt.keySizeComboBox = gtk_combo_box_text_new ();
-    char keySizeComboBoxTextString[13] = {0};
+    char keySizeComboBoxTextString[15] = {0};
     gtk_widget_set_tooltip_text (st.guiSt.keySizeComboBox, "This controls the size of the key that will be derived from the password");
     for(int i = 0; i < 34; i++) {
         bytesPrefixed(keySizeComboBoxTextString, number);
@@ -180,7 +180,7 @@ int main(int argc, char *argv[])
     GtkWidget *macBufSizeLabel = gtk_label_new ("Authentication Buffer Size");
     st.guiSt.macBufSizeComboBox = gtk_combo_box_text_new ();
     gtk_widget_set_tooltip_text (st.guiSt.macBufSizeComboBox, "This controls the size of the buffer used for authenticating data");
-    char macBufSizeComboBoxTextString[13] = {0};
+    char macBufSizeComboBoxTextString[15] = {0};
     number = 1;
     for(int i = 0; i < 34; i++) {
         bytesPrefixed(macBufSizeComboBoxTextString, number);
@@ -192,7 +192,7 @@ int main(int argc, char *argv[])
     GtkWidget *msgBufSizeLabel = gtk_label_new ("File Buffer Size");
     st.guiSt.msgBufSizeComboBox = gtk_combo_box_text_new ();
     gtk_widget_set_tooltip_text (st.guiSt.msgBufSizeComboBox, "This controls the size of the buffer used for encryption/decryption data");
-    char msgBufSizeComboBoxTextString[13] = {0};
+    char msgBufSizeComboBoxTextString[15] = {0};
     number = 1;
     for(int i = 0; i < 34; i++) {
         bytesPrefixed(msgBufSizeComboBoxTextString, number);
@@ -262,21 +262,21 @@ int main(int argc, char *argv[])
     }
     
     if(st.optSt.keyBufSizeGiven) {
-        char size_string[13];
+        char size_string[15];
         bytesPrefixed(size_string,st.cryptSt.keyBufSize);
         gtk_combo_box_text_prepend ( GTK_COMBO_BOX_TEXT (st.guiSt.keySizeComboBox), 0, (const gchar*) size_string);
         gtk_combo_box_set_active (GTK_COMBO_BOX (st.guiSt.keySizeComboBox), 0);
     }
     
     if(st.optSt.macBufSizeGiven) {
-        char size_string[13];
+        char size_string[15];
         bytesPrefixed(size_string,st.cryptSt.genHmacBufSize);
         gtk_combo_box_text_prepend ( GTK_COMBO_BOX_TEXT (st.guiSt.macBufSizeComboBox), 0, (const gchar*) size_string);
         gtk_combo_box_set_active (GTK_COMBO_BOX (st.guiSt.macBufSizeComboBox), 0);
     }
     
     if(st.optSt.msgBufSizeGiven) {
-        char size_string[13];
+        char size_string[15];
         bytesPrefixed(size_string,st.cryptSt.msgBufSize);
         gtk_combo_box_text_prepend ( GTK_COMBO_BOX_TEXT (st.guiSt.msgBufSizeComboBox), 0, (const gchar*) size_string);
         gtk_combo_box_set_active (GTK_COMBO_BOX (st.guiSt.msgBufSizeComboBox), 0);
@@ -401,7 +401,7 @@ void on_cryptButton_clicked(GtkWidget *wid, gpointer ptr) {
     
     if(strlen(st->guiSt.inputFilePath)) {
         st->optSt.inputFileGiven = true;
-        strcpy(st->fileNameSt.inputFileName,st->guiSt.inputFilePath);
+        snprintf(st->fileNameSt.inputFileName,MAX_FILE_NAME_SIZE,"%s",st->guiSt.inputFilePath);
     } else {
         strcpy(st->guiSt.statusMessage,"Need input file...");
         error = TRUE;
@@ -409,7 +409,7 @@ void on_cryptButton_clicked(GtkWidget *wid, gpointer ptr) {
     
     if(strlen(st->guiSt.outputFilePath)) {
         st->optSt.outputFileGiven = true;
-        strcpy(st->fileNameSt.outputFileName,st->guiSt.outputFilePath);
+        snprintf(st->fileNameSt.outputFileName,MAX_FILE_NAME_SIZE,"%s",st->guiSt.outputFilePath);
     } else {
         strcpy(st->guiSt.statusMessage,"Need output file...");
         error = TRUE;
@@ -441,7 +441,7 @@ void on_cryptButton_clicked(GtkWidget *wid, gpointer ptr) {
     
     if(strlen(st->guiSt.keyFilePath)) {
         st->optSt.keyFileGiven = true;
-        strcpy(st->fileNameSt.keyFileName,st->guiSt.keyFilePath);
+        snprintf(st->fileNameSt.keyFileName,MAX_FILE_NAME_SIZE,"%s",st->guiSt.keyFilePath);
         st->cryptSt.keyFileSize = getFileSize(st->fileNameSt.keyFileName);
         st->cryptSt.keyBufSize = st->cryptSt.keyFileSize;
         st->cryptSt.yaxaSaltSize = st->cryptSt.keyBufSize / YAXA_KEY_CHUNK_SIZE;
@@ -452,8 +452,8 @@ void on_cryptButton_clicked(GtkWidget *wid, gpointer ptr) {
     if(strlen(st->guiSt.otpFilePath)) {
         st->optSt.oneTimePad = true;
         st->cryptSt.yaxaSaltSize = 0;
-        strcpy(st->fileNameSt.otpInFileName,st->guiSt.otpFilePath);
-        snprintf(st->fileNameSt.otpOutFileName, NAME_MAX, "%s", st->guiSt.otpFilePath);
+        snprintf(st->fileNameSt.otpInFileName,MAX_FILE_NAME_SIZE,"%s",st->guiSt.otpFilePath);
+        snprintf(st->fileNameSt.otpOutFileName, MAX_FILE_NAME_SIZE - strlen(".pad"), "%s", st->guiSt.otpFilePath);
         sprintf(st->fileNameSt.otpOutFileName,"%s.pad", st->guiSt.outputFilePath);
     } else {
         st->optSt.oneTimePad = false;

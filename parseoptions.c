@@ -36,8 +36,8 @@ struct dataStruct *st
 ) {
     int c;
     int errflg = 0;
-    char binName[NAME_MAX];
-    snprintf(binName,NAME_MAX,"%s",argv[0]);
+    char binName[MAX_FILE_NAME_SIZE];
+    snprintf(binName,MAX_FILE_NAME_SIZE,"%s",argv[0]);
 
     /*Process through arguments*/
     while (1) {
@@ -81,7 +81,7 @@ struct dataStruct *st
                 break;
             } else {
                 st->optSt.inputFileGiven = true;
-                snprintf(st->fileNameSt.inputFileName, NAME_MAX, "%s", optarg);
+                snprintf(st->fileNameSt.inputFileName, MAX_FILE_NAME_SIZE, "%s", optarg);
             }
         break;
         case 'o':
@@ -91,7 +91,7 @@ struct dataStruct *st
                 break;
             } else {
                 st->optSt.outputFileGiven = true;
-                snprintf(st->fileNameSt.outputFileName, NAME_MAX, "%s", optarg);
+                snprintf(st->fileNameSt.outputFileName, MAX_FILE_NAME_SIZE, "%s", optarg);
             }
         break;
         case 'k':
@@ -101,7 +101,7 @@ struct dataStruct *st
                 break;
             } else {
                 st->optSt.keyFileGiven = true;
-                snprintf(st->fileNameSt.keyFileName, NAME_MAX, "%s", optarg);
+                snprintf(st->fileNameSt.keyFileName, MAX_FILE_NAME_SIZE, "%s", optarg);
             }
         break;
         case 'O':
@@ -111,7 +111,7 @@ struct dataStruct *st
                 break;
             } else {
                 st->optSt.oneTimePad = true;
-                snprintf(st->fileNameSt.otpInFileName, NAME_MAX, "%s", optarg);
+                snprintf(st->fileNameSt.otpInFileName, MAX_FILE_NAME_SIZE, "%s", optarg);
                 sprintf(st->fileNameSt.otpOutFileName,"%s.pad", st->fileNameSt.outputFileName);
                 
             }
