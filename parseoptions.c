@@ -81,7 +81,7 @@ struct dataStruct *st
                 break;
             } else {
                 st->optSt.inputFileGiven = true;
-                snprintf(st->fileNameSt.inputFileName, MAX_FILE_NAME_SIZE, "%s", optarg);
+                st->fileNameSt.inputFileName = strdup(optarg);
             }
         break;
         case 'o':
@@ -91,7 +91,7 @@ struct dataStruct *st
                 break;
             } else {
                 st->optSt.outputFileGiven = true;
-                snprintf(st->fileNameSt.outputFileName, MAX_FILE_NAME_SIZE, "%s", optarg);
+                st->fileNameSt.outputFileName = strdup(optarg);
             }
         break;
         case 'k':
@@ -101,7 +101,7 @@ struct dataStruct *st
                 break;
             } else {
                 st->optSt.keyFileGiven = true;
-                snprintf(st->fileNameSt.keyFileName, MAX_FILE_NAME_SIZE, "%s", optarg);
+                st->fileNameSt.keyFileName = strdup(optarg);
             }
         break;
         case 'O':
@@ -111,7 +111,8 @@ struct dataStruct *st
                 break;
             } else {
                 st->optSt.oneTimePad = true;
-                snprintf(st->fileNameSt.otpInFileName, MAX_FILE_NAME_SIZE, "%s", optarg);
+                st->fileNameSt.otpInFileName = strdup(optarg);
+                st->fileNameSt.otpOutFileName = malloc( ((strlen(st->fileNameSt.outputFileName)+1) + (strlen(".pad")+1) + 1) * sizeof(uint8_t));
                 sprintf(st->fileNameSt.otpOutFileName,"%s.pad", st->fileNameSt.outputFileName);
                 
             }

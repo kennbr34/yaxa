@@ -402,7 +402,7 @@ void on_cryptButton_clicked(GtkWidget *wid, gpointer ptr) {
     
     if(strlen(st->guiSt.inputFilePath)) {
         st->optSt.inputFileGiven = true;
-        snprintf(st->fileNameSt.inputFileName,MAX_FILE_NAME_SIZE,"%s",st->guiSt.inputFilePath);
+        st->fileNameSt.inputFileName = strdup(st->guiSt.inputFilePath);
     } else {
         strcpy(st->guiSt.statusMessage,"Need input file...");
         error = TRUE;
@@ -410,7 +410,7 @@ void on_cryptButton_clicked(GtkWidget *wid, gpointer ptr) {
     
     if(strlen(st->guiSt.outputFilePath)) {
         st->optSt.outputFileGiven = true;
-        snprintf(st->fileNameSt.outputFileName,MAX_FILE_NAME_SIZE,"%s",st->guiSt.outputFilePath);
+        st->fileNameSt.outputFileName = strdup(st->guiSt.outputFilePath);
     } else {
         strcpy(st->guiSt.statusMessage,"Need output file...");
         error = TRUE;
@@ -442,7 +442,7 @@ void on_cryptButton_clicked(GtkWidget *wid, gpointer ptr) {
     
     if(strlen(st->guiSt.keyFilePath)) {
         st->optSt.keyFileGiven = true;
-        snprintf(st->fileNameSt.keyFileName,MAX_FILE_NAME_SIZE,"%s",st->guiSt.keyFilePath);
+        st->fileNameSt.keyFileName = strdup(st->guiSt.keyFilePath);
         st->cryptSt.keyFileSize = getFileSize(st->fileNameSt.keyFileName);
         st->cryptSt.keyBufSize = st->cryptSt.keyFileSize;
         st->cryptSt.yaxaSaltSize = st->cryptSt.keyBufSize / YAXA_KEY_CHUNK_SIZE;
@@ -453,9 +453,9 @@ void on_cryptButton_clicked(GtkWidget *wid, gpointer ptr) {
     if(strlen(st->guiSt.otpFilePath)) {
         st->optSt.oneTimePad = true;
         st->cryptSt.yaxaSaltSize = 0;
-        snprintf(st->fileNameSt.otpInFileName,MAX_FILE_NAME_SIZE,"%s",st->guiSt.otpFilePath);
-        snprintf(st->fileNameSt.otpOutFileName, MAX_FILE_NAME_SIZE - strlen(".pad"), "%s", st->guiSt.otpFilePath);
-        sprintf(st->fileNameSt.otpOutFileName,"%s.pad", st->guiSt.outputFilePath);
+        st->fileNameSt.otpInFileName = strdup(st->guiSt.otpFilePath);
+        st->fileNameSt.otpOutFileName = malloc(((strlen(st->guiSt.outputFilePath)+1) + (strlen(".pad")+1) +1 ) * sizeof(uint8_t));
+        sprintf(st->fileNameSt.otpOutFileName, "%s.pad", st->guiSt.outputFilePath);
     } else {
         st->optSt.oneTimePad = false;
     }
