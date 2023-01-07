@@ -216,6 +216,10 @@ struct dataStruct *st
                         
                         st->optSt.keyBufSizeGiven = true;
                         st->cryptSt.keyBufSize = atol(value) * sizeof(*st->cryptSt.yaxaKey) * getBufSizeMultiple(value);
+                        if(st->cryptSt.keyBufSize < YAXA_KEY_CHUNK_SIZE) {
+                            printf("Minimum key size is 64 bytes, raising to that level\n");
+                            st->cryptSt.keyBufSize = YAXA_KEY_CHUNK_SIZE;
+                        }
                         st->cryptSt.yaxaSaltSize = st->cryptSt.keyBufSize / YAXA_KEY_CHUNK_SIZE;
                     break;
                     case MAC_BUFFER:

@@ -137,13 +137,14 @@ int main(int argc, char *argv[])
     GtkWidget *keySizeLabel = gtk_label_new ("Key Size");
     st.guiSt.keySizeComboBox = gtk_combo_box_text_new ();
     char keySizeComboBoxTextString[15] = {0};
+    number = 64;
     gtk_widget_set_tooltip_text (st.guiSt.keySizeComboBox, "This controls the size of the key that will be derived from the password");
     for(int i = 0; i < 34; i++) {
         bytesPrefixed(keySizeComboBoxTextString, number);
         gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (st.guiSt.keySizeComboBox), keySizeComboBoxTextString);
         number = number << 1;
     }
-    gtk_combo_box_set_active (GTK_COMBO_BOX (st.guiSt.keySizeComboBox), 25);
+    gtk_combo_box_set_active (GTK_COMBO_BOX (st.guiSt.keySizeComboBox), 19);
     
     GtkWidget *visibilityButton = gtk_check_button_new_with_label ("Show Password");
     gtk_widget_set_tooltip_text (visibilityButton, "Hint: Use this to avoid typos");
@@ -339,7 +340,68 @@ int main(int argc, char *argv[])
     
     gtk_main ();
     
+    if(getpid() != getppid()) {
+        exit(EXIT_SUCCESS);
+    }
+    
     cleanUpBuffers(&st);
+    
+    free(st.guiSt.win);
+
+    free(st.guiSt.inputFileNameBox);
+    free(st.guiSt.outputFileNameBox);
+    free(st.guiSt.keyFileNameBox);
+    free(st.guiSt.otpFileNameBox);
+    free(st.guiSt.passwordBox);
+    free(st.guiSt.passwordVerificationBox);
+    
+    free(st.guiSt.nFactorTextBox);
+    free(st.guiSt.rFactorTextBox);
+    free(st.guiSt.pFactorTextBox);
+    
+    free(st.guiSt.otpFileButton);
+    free(st.guiSt.keyFileButton);
+    
+    free(st.guiSt.keySizeComboBox);
+    free(st.guiSt.macBufSizeComboBox);
+    free(st.guiSt.msgBufSizeComboBox);
+    
+    free((void *)st.guiSt.passWord);
+    free((void *)st.guiSt.verificationPass);
+    free((void *)st.guiSt.keySizeComboBoxText);
+    free((void *)st.guiSt.macBufSizeComboBoxText);
+    free((void *)st.guiSt.msgBufSizeComboBoxText);
+
+    free(st.guiSt.progressFraction);
+    free(st.guiSt.statusMessage);
+    
+    free(st.guiSt.statusBar);
+    
+    free(st.guiSt.overallProgressBar);
+    free(st.guiSt.overallProgressFraction);
+    
+    free(st.guiSt.progressBar);
+    
+    free(inputFileLabel);
+    free(inputFileButton);
+    free(outputFileLabel);
+    free(outputFileButton);
+    free(passwordLabel);
+    free(verificationLabel);
+    free(scryptWorkFactorsLabel);
+    free(nFactorLabel);
+    free(nFactorSpinButtonAdj);
+    free(rFactorLabel);
+    free(rFactorSpinButtonAdj);
+    free(pFactorLabel);
+    free(pFactorSpinButtonAdj);
+    free(keySizeLabel);
+    free(otpFileLabel);
+    free(macBufSizeLabel);
+    free(msgBufSizeLabel);
+    free(encryptButton);
+    free(decryptButton);
+    free(grid);
 
     exit(EXIT_SUCCESS);
 }

@@ -74,10 +74,10 @@ echo "Testing with password and non-default scrypt work factors"
 do_test "-p password -w N=1024"
 
 echo "Testing with password and non-default scrypt work factors, and non-default key size"
-do_test "-p password -w N=1024 -s key_size=32b"
+do_test "-p password -w N=1024 -s key_size=64b"
 
 echo "Testing with password and non-default scrypt work factors, non-default key size and non-default buffers"
-do_test "-p password -w N=1024 -s key_size=32b,mac_buffer=64m,message_buffer=64m"
+do_test "-p password -w N=1024 -s key_size=64b,mac_buffer=64m,message_buffer=64m"
 
 echo "Testing with keyfile with default parameters"
 do_test "-k $KEYFILE"
@@ -86,7 +86,7 @@ echo "Testing with keyfile and password with default parameters"
 do_test "-k $KEYFILE -p password"
 
 echo "Testing with keyfile and password with non-default keysize"
-do_test "-k $KEYFILE -p password -s key_size=32b"
+do_test "-k $KEYFILE -p password -s key_size=64b"
 
 echo "Testing with keyfile and password with non-default scrypt work factors and non-default buffers"
 do_test "-k $KEYFILE -p password -w N=1024 -s mac_buffer=64m,message_buffer=64m"
@@ -101,7 +101,7 @@ echo "Testing with one-time-pad and password with non-default scrypt parameters"
 do_test_otp "-p password -w N=1024"
 
 echo "Testing with one-time-pad and password with non-default scrypt parameters and keysize"
-do_test_otp "-p password -w N=1024 -s key_size=32b"
+do_test_otp "-p password -w N=1024 -s key_size=64b"
 
 echo "Testing with one-time-pad and password with non-default scrypt parameters, keysize and non-default buffers"
-do_test_otp "-p password -w N=1024 -s key_size=32b,mac_buffer=64m,message_buffer=64m"
+do_test_otp "-p password -w N=1024 -s key_size=64b,mac_buffer=64m,message_buffer=64m"

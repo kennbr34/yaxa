@@ -113,6 +113,7 @@ void doCrypt(FILE *inFile, FILE *outFile, cryptint_t fileSize, FILE *otpInFile, 
     
     free(inBuffer);
     free(outBuffer);
+    free(otpBuffer);
 }
 
 void genHMAC(FILE *dataFile, cryptint_t fileSize, struct dataStruct *st)

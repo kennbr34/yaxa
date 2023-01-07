@@ -100,6 +100,9 @@ int workThread(char action, struct dataStruct *st)
         
         if(action == 'e') {
             otpOutFile = fopen(st->fileNameSt.otpOutFileName,"wb");
+            if(otpOutFile == NULL) {
+                printFileError(st->fileNameSt.otpOutFileName,errno);
+            }
         }
         
         if(st->optSt.passWordGiven) {

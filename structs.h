@@ -36,11 +36,11 @@ struct cryptoStruct {
 };
 
 struct fileNames {
-    char inputFileName[PATH_MAX + NAME_MAX + 1];
-    char outputFileName[PATH_MAX + NAME_MAX + 1];
-    char keyFileName[PATH_MAX + NAME_MAX + 1];
-    char otpInFileName[PATH_MAX + NAME_MAX + 1];
-    char otpOutFileName[PATH_MAX + NAME_MAX + 1 + 4];
+    char inputFileName[MAX_FILE_NAME_SIZE];
+    char outputFileName[MAX_FILE_NAME_SIZE];
+    char keyFileName[MAX_FILE_NAME_SIZE];
+    char otpInFileName[MAX_FILE_NAME_SIZE];
+    char otpOutFileName[MAX_FILE_NAME_SIZE + 4];
 };
 
 struct optionsStruct {
