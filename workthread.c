@@ -1,3 +1,5 @@
+#include "headers.h"
+
 int workThread(char action, struct dataStruct *st)
 {
     pid_t p = fork();

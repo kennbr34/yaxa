@@ -4,17 +4,17 @@ TESTFILE=$1
 KEYFILE=$2
 
 
-ENC_CLI="./cli -e -i $TESTFILE -o ${TESTFILE}.enc"
-DEC_CLI="./cli -d -i ${TESTFILE}.enc -o ${TESTFILE}.plain"
+ENC_CLI="./yaxafileutil-cli -e -i $TESTFILE -o ${TESTFILE}.enc"
+DEC_CLI="./yaxafileutil-cli -d -i ${TESTFILE}.enc -o ${TESTFILE}.plain"
 
-ENC_GUI="./yaxafileutil -q -e -i $TESTFILE -o ${TESTFILE}.enc"
-DEC_GUI="./yaxafileutil -q -d -i ${TESTFILE}.enc -o ${TESTFILE}.plain"
+ENC_GUI="./yaxafileutil-gui -q -e -i $TESTFILE -o ${TESTFILE}.enc"
+DEC_GUI="./yaxafileutil-gui -q -d -i ${TESTFILE}.enc -o ${TESTFILE}.plain"
 
-ENC_CLI_OTP="./cli -e -i $TESTFILE -o ${TESTFILE}.enc -O /dev/urandom"
-DEC_CLI_OTP="./cli -d -i ${TESTFILE}.enc -o ${TESTFILE}.plain -O ${TESTFILE}.enc.pad"
+ENC_CLI_OTP="./yaxafileutil-cli -e -i $TESTFILE -o ${TESTFILE}.enc -O /dev/urandom"
+DEC_CLI_OTP="./yaxafileutil-cli -d -i ${TESTFILE}.enc -o ${TESTFILE}.plain -O ${TESTFILE}.enc.pad"
 
-ENC_GUI_OTP="./yaxafileutil -q -e -i $TESTFILE -o ${TESTFILE}.enc -O /dev/urandom"
-DEC_GUI_OTP="./yaxafileutil -q -d -i ${TESTFILE}.enc -o ${TESTFILE}.plain -O ${TESTFILE}.enc.pad"
+ENC_GUI_OTP="./yaxafileutil-gui -q -e -i $TESTFILE -o ${TESTFILE}.enc -O /dev/urandom"
+DEC_GUI_OTP="./yaxafileutil-gui -q -d -i ${TESTFILE}.enc -o ${TESTFILE}.plain -O ${TESTFILE}.enc.pad"
 
 CMP_RES="cmp ${TESTFILE} ${TESTFILE}.plain"
 

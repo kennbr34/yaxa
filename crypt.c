@@ -1,3 +1,5 @@
+#include "headers.h"
+
 void doCrypt(FILE *inFile, FILE *outFile, cryptint_t fileSize, FILE *otpInFile, FILE *otpOutFile, struct dataStruct *st)
 {
     

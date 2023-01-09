@@ -3,11 +3,7 @@
   for use in the OpenSSL Toolkit (http://www.openssl.org/)
 */
 #include "headers.h"
-#include "crypt.c"
-#include "misc.c"
-#include "buffers.c"
-#include "workthread.c"
-#include "parseoptions.c"
+
 
 char *getPass(const char *prompt, char *paddedPass)
 {

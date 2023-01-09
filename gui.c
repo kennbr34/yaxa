@@ -3,11 +3,7 @@
   for use in the OpenSSL Toolkit (http://www.openssl.org/)
 */
 #include "headers.h"
-#include "crypt.c"
-#include "misc.c"
-#include "buffers.c"
-#include "workthread.c"
-#include "parseoptions.c"
+
 
 void on_cryptButton_clicked(GtkWidget *wid, gpointer ptr);
 void choseEncrypt(GtkWidget *wid, gpointer ptr);

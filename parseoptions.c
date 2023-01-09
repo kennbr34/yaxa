@@ -1,3 +1,5 @@
+#include "headers.h"
+
 uint8_t printSyntax(char *arg)
 {
     printf("\

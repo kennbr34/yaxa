@@ -1,3 +1,5 @@
+#include "headers.h"
+
 uint64_t freadWErrCheck(void *ptr, size_t size, size_t nmemb, FILE *stream, struct dataStruct *st)
 {
     if (fread(ptr, size, nmemb, stream) != nmemb / size) {

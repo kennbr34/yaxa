@@ -1,3 +1,5 @@
+#include "headers.h"
+
 void allocateBuffers(struct dataStruct *st)
 {
     st->cryptSt.yaxaKey = calloc(st->cryptSt.keyBufSize, sizeof(*st->cryptSt.yaxaKey));

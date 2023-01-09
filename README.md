@@ -22,6 +22,19 @@ Graphical interface:
 
 gcc \`pkg-config --cflags gtk+-3.0\` ./gui.c -o ./yaxafileutil \`pkg-config --libs gtk+-3.0\` -lcrypto -Dgui
 
+Or
+
+./configure
+
+For GUI
+make gui
+
+For CLI
+make cli
+
+For both
+make all
+
 # Intent and Disclaimer
 
 __*DO NOT RELY ON THIS FOR STRONG ENCRYPTION*__
