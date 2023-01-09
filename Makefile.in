@@ -102,17 +102,17 @@ CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
 am__installdirs = "$(DESTDIR)$(bindir)"
 PROGRAMS = $(bin_PROGRAMS)
-am_yaxafileutil_cli_OBJECTS = buffers.$(OBJEXT) crypt.$(OBJEXT) \
-	misc.$(OBJEXT) parseoptions.$(OBJEXT) workthread.$(OBJEXT) \
-	cli.$(OBJEXT)
+am_yaxafileutil_cli_OBJECTS = cli.$(OBJEXT) buffers.$(OBJEXT) \
+	crypt.$(OBJEXT) misc.$(OBJEXT) parseoptions.$(OBJEXT) \
+	workthread.$(OBJEXT)
 yaxafileutil_cli_OBJECTS = $(am_yaxafileutil_cli_OBJECTS)
 yaxafileutil_cli_LDADD = $(LDADD)
-am_yaxafileutil_gui_OBJECTS = yaxafileutil_gui-buffers.$(OBJEXT) \
+am_yaxafileutil_gui_OBJECTS = yaxafileutil_gui-gui.$(OBJEXT) \
+	yaxafileutil_gui-buffers.$(OBJEXT) \
 	yaxafileutil_gui-crypt.$(OBJEXT) \
 	yaxafileutil_gui-misc.$(OBJEXT) \
 	yaxafileutil_gui-parseoptions.$(OBJEXT) \
-	yaxafileutil_gui-workthread.$(OBJEXT) \
-	yaxafileutil_gui-gui.$(OBJEXT)
+	yaxafileutil_gui-workthread.$(OBJEXT)
 yaxafileutil_gui_OBJECTS = $(am_yaxafileutil_gui_OBJECTS)
 am__DEPENDENCIES_1 =
 yaxafileutil_gui_DEPENDENCIES = $(am__DEPENDENCIES_1)
@@ -292,8 +292,8 @@ target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-yaxafileutil_gui_SOURCES = buffers.c crypt.c misc.c parseoptions.c workthread.c gui.c
-yaxafileutil_cli_SOURCES = buffers.c crypt.c misc.c parseoptions.c workthread.c cli.c
+yaxafileutil_gui_SOURCES = gui.c buffers.c crypt.c misc.c parseoptions.c workthread.c
+yaxafileutil_cli_SOURCES = cli.c buffers.c crypt.c misc.c parseoptions.c workthread.c
 yaxafileutil_gui_CFLAGS = -Dgui $(GTK_CFLAGS)
 yaxafileutil_gui_LDADD = $(GTK_LIBS)
 all: config.h
@@ -433,6 +433,20 @@ distclean-compile:
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(COMPILE) -c -o $@ `$(CYGPATH_W) '$<'`
 
+yaxafileutil_gui-gui.o: gui.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(yaxafileutil_gui_CFLAGS) $(CFLAGS) -MT yaxafileutil_gui-gui.o -MD -MP -MF $(DEPDIR)/yaxafileutil_gui-gui.Tpo -c -o yaxafileutil_gui-gui.o `test -f 'gui.c' || echo '$(srcdir)/'`gui.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/yaxafileutil_gui-gui.Tpo $(DEPDIR)/yaxafileutil_gui-gui.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='gui.c' object='yaxafileutil_gui-gui.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(yaxafileutil_gui_CFLAGS) $(CFLAGS) -c -o yaxafileutil_gui-gui.o `test -f 'gui.c' || echo '$(srcdir)/'`gui.c
+
+yaxafileutil_gui-gui.obj: gui.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(yaxafileutil_gui_CFLAGS) $(CFLAGS) -MT yaxafileutil_gui-gui.obj -MD -MP -MF $(DEPDIR)/yaxafileutil_gui-gui.Tpo -c -o yaxafileutil_gui-gui.obj `if test -f 'gui.c'; then $(CYGPATH_W) 'gui.c'; else $(CYGPATH_W) '$(srcdir)/gui.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/yaxafileutil_gui-gui.Tpo $(DEPDIR)/yaxafileutil_gui-gui.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='gui.c' object='yaxafileutil_gui-gui.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(yaxafileutil_gui_CFLAGS) $(CFLAGS) -c -o yaxafileutil_gui-gui.obj `if test -f 'gui.c'; then $(CYGPATH_W) 'gui.c'; else $(CYGPATH_W) '$(srcdir)/gui.c'; fi`
+
 yaxafileutil_gui-buffers.o: buffers.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(yaxafileutil_gui_CFLAGS) $(CFLAGS) -MT yaxafileutil_gui-buffers.o -MD -MP -MF $(DEPDIR)/yaxafileutil_gui-buffers.Tpo -c -o yaxafileutil_gui-buffers.o `test -f 'buffers.c' || echo '$(srcdir)/'`buffers.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/yaxafileutil_gui-buffers.Tpo $(DEPDIR)/yaxafileutil_gui-buffers.Po
@@ -502,20 +516,6 @@ yaxafileutil_gui-workthread.obj: workthread.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='workthread.c' object='yaxafileutil_gui-workthread.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(yaxafileutil_gui_CFLAGS) $(CFLAGS) -c -o yaxafileutil_gui-workthread.obj `if test -f 'workthread.c'; then $(CYGPATH_W) 'workthread.c'; else $(CYGPATH_W) '$(srcdir)/workthread.c'; fi`
-
-yaxafileutil_gui-gui.o: gui.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(yaxafileutil_gui_CFLAGS) $(CFLAGS) -MT yaxafileutil_gui-gui.o -MD -MP -MF $(DEPDIR)/yaxafileutil_gui-gui.Tpo -c -o yaxafileutil_gui-gui.o `test -f 'gui.c' || echo '$(srcdir)/'`gui.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/yaxafileutil_gui-gui.Tpo $(DEPDIR)/yaxafileutil_gui-gui.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='gui.c' object='yaxafileutil_gui-gui.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(yaxafileutil_gui_CFLAGS) $(CFLAGS) -c -o yaxafileutil_gui-gui.o `test -f 'gui.c' || echo '$(srcdir)/'`gui.c
-
-yaxafileutil_gui-gui.obj: gui.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(yaxafileutil_gui_CFLAGS) $(CFLAGS) -MT yaxafileutil_gui-gui.obj -MD -MP -MF $(DEPDIR)/yaxafileutil_gui-gui.Tpo -c -o yaxafileutil_gui-gui.obj `if test -f 'gui.c'; then $(CYGPATH_W) 'gui.c'; else $(CYGPATH_W) '$(srcdir)/gui.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/yaxafileutil_gui-gui.Tpo $(DEPDIR)/yaxafileutil_gui-gui.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='gui.c' object='yaxafileutil_gui-gui.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(yaxafileutil_gui_CFLAGS) $(CFLAGS) -c -o yaxafileutil_gui-gui.obj `if test -f 'gui.c'; then $(CYGPATH_W) 'gui.c'; else $(CYGPATH_W) '$(srcdir)/gui.c'; fi`
 
 ID: $(am__tagged_files)
 	$(am__define_uniq_tagged_files); mkid -fID $$unique
