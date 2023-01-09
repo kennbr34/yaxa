@@ -2894,7 +2894,7 @@ END
 fi
 
 
-: ${CFLAGS="-O4 -Wall -Wno-Wdeprecated-declarations -Wno-overlength-strings -fsanitize=undefined"}
+: ${CFLAGS="-O4 -Wall -Wno-deprecate -Wno-overlength-strings -fsanitize=undefined"}
 
 # Checks for programs.
 ac_ext=c
