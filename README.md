@@ -25,15 +25,7 @@ gcc \`pkg-config --cflags gtk+-3.0\` ./gui.c -o ./yaxafileutil \`pkg-config --li
 Or
 
 ./configure
-
-For GUI
-make gui
-
-For CLI
-make cli
-
-For both
-make all
+make
 
 # Intent and Disclaimer
 

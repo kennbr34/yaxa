@@ -4,7 +4,6 @@
 */
 #include "headers.h"
 
-
 char *getPass(const char *prompt, char *paddedPass)
 {
     size_t len = 0;
