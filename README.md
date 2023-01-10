@@ -25,7 +25,7 @@ gcc -fcommon ./cli.c buffers.c crypt.c misc.c parseoptions.c workthread.c -o ./y
 
 Graphical interface:
 
-gcc -fcommon -Dgui `pkg-config --cflags gtk+-3.0` ./gui.c buffers.c crypt.c misc.c parseoptions.c workthread.c -o ./yaxafileutil-gui `pkg-config --libs gtk+-3.0` -lcrypto
+gcc -fcommon -Dgui \`pkg-config --cflags gtk+-3.0\` ./gui.c buffers.c crypt.c misc.c parseoptions.c workthread.c -o ./yaxafileutil-gui \`pkg-config --libs gtk+-3.0\` -lcrypto
 
 Or with autotools/automake
 
