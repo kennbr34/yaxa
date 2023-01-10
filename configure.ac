@@ -8,7 +8,7 @@ AC_CONFIG_HEADERS([config.h])
 
 AM_INIT_AUTOMAKE
 
-: ${CFLAGS="-fcommon -O4 -Wall -Wno-deprecated -Wno-overlength-strings -fsanitize=undefined"}
+: ${CFLAGS="-fcommon -O4 -Wall -Wno-deprecated -Wno-deprecated-declarations -Wno-overlength-strings -Wno-pointer-sign -Wformat-overflow=0 -fsanitize=undefined"}
 
 # Checks for programs.
 AC_PROG_CC
