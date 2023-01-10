@@ -17,15 +17,17 @@ automake >= 1.15.1
 
 # Compilation
 
+*Note* -fcommon needed to avoid redefintion errors in gcc versions over 11
+
 Command-line iterface:
 
-gcc ./cli.c -o ./yaxafileutil -lcrypto
+gcc -fcommon ./cli.c buffers.c crypt.c misc.c parseoptions.c workthread.c -o ./yaxafileutil-cli -lcrypto
 
 Graphical interface:
 
-gcc \`pkg-config --cflags gtk+-3.0\` ./gui.c -o ./yaxafileutil \`pkg-config --libs gtk+-3.0\` -lcrypto -Dgui
+gcc -fcommon -Dgui `pkg-config --cflags gtk+-3.0` ./gui.c buffers.c crypt.c misc.c parseoptions.c workthread.c -o ./yaxafileutil-gui `pkg-config --libs gtk+-3.0` -lcrypto
 
-Or
+Or with autotools/automake
 
 ./configure
 make
