@@ -12,6 +12,9 @@ OpenSSL 1.1.*
 GTK 3.0
 pkg-config
 
+(For Makefile)
+automake >= 1.15.1
+
 # Compilation
 
 Command-line iterface:
@@ -26,6 +29,8 @@ Or
 
 ./configure
 make
+
+*Note* May need to run autoreconf if your autotools version is greater than 1.15.1
 
 # Intent and Disclaimer
 
