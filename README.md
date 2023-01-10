@@ -11,6 +11,7 @@ GTK >= 2.91 development files
 pkg-config
 
 (For Makefile)
+
 automake >= 1.15.1
 
 # Compilation
@@ -28,6 +29,7 @@ gcc -fcommon -Dgui \`pkg-config --cflags gtk+-3.0\` ./gui.c buffers.c crypt.c mi
 Or with autotools/automake
 
 ./configure
+
 make
 
 *Note* May need to run autoreconf if your autotools version is greater than 1.15.1
