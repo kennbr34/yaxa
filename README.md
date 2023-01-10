@@ -2,10 +2,12 @@
 GUI for toy crypto algorithm and file-encryption utility using OpenSSL
 
 # Dependencies
-OpenSSL 1.1.*
+OpenSSL >= 1.1.*
 
 (For GUI only)
-GTK 3.0
+
+GTK >= 2.91 development files
+
 pkg-config
 
 (For Makefile)
